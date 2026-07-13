@@ -160,7 +160,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: inputs.test_command != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         continue-on-error: true
         with:
           name: coverage-${{ github.run_id }}-${{ github.job }}
