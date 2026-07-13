@@ -118,15 +118,13 @@ jobs:
           eval "${{ inputs.audit_command }}"
           code=$?
           if [ "$code" -ne 0 ]; then
-            # Soft-fail by default: many legacy apps have high findings; still surface in logs.
-            # Set audit_command to a wrapper that exits 0, or clean deps then treat as hard gate in product policy.
             echo "::warning::Dependency audit reported issues (exit $code). Fix high/critical CVEs ASAP."
           fi
+          # Audit stays advisory so known transitive CVEs do not block the pipeline.
           exit 0
 
       - name: Lint
         if: inputs.lint_command != ''
-        continue-on-error: true
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
@@ -134,14 +132,7 @@ jobs:
           SUPABASE_ANON_KEY: placeholder-anon-key
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
         shell: bash
-        run: |
-          set +e
-          eval "${{ inputs.lint_command }}"
-          code=$?
-          if [ "$code" -ne 0 ]; then
-            echo "::warning::Lint exited $code. Fix when ready; continuing so tests/build still run."
-          fi
-          exit 0
+        run: eval "${{ inputs.lint_command }}"
 
       - name: Typecheck
         if: inputs.typecheck_command != ''
@@ -164,14 +155,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
           CI: "true"
         shell: bash
-        run: |
-          set +e
-          eval "${{ inputs.test_command }}"
-          code=$?
-          if [ "$code" -ne 0 ]; then
-            echo "::warning::Tests/coverage exited $code. Fix suites and raise coverage when ready; continuing so build still runs."
-          fi
-          exit 0
+        run: eval "${{ inputs.test_command }}"
 
       - name: Upload coverage artifact
         if: inputs.test_command != ''
