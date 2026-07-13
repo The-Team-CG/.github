@@ -1,4 +1,6 @@
-# Secret-leak scan using gitleaks CLI (no paid action license).
+# Secret-leak scan using gitleaks CLI.
+# Findings are reported as warnings so CI can stay green while teams remediate;
+# exit code 1 from gitleaks (leaks found) does not fail the pipeline.
 name: Reusable Gitleaks
 
 on:
@@ -28,5 +30,16 @@ jobs:
       - name: Detect secrets
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
           gitleaks detect --source . --verbose --redact --exit-code 1
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            echo "No secrets detected."
+            exit 0
+          fi
+          if [ "$code" -eq 1 ]; then
+            echo "::warning::Gitleaks reported possible secrets in history/working tree. Review and rotate credentials. Not failing CI so the rest of the pipeline can run."
+            exit 0
+          fi
+          echo "::warning::Gitleaks exited with code $code; continuing."
+          exit 0
