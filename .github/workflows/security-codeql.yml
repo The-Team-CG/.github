@@ -1,4 +1,4 @@
-# Free CodeQL where GitHub allows (public free; private may need GHAS — then job skips/soft-fails).
+# CodeQL analysis (continues soft if unavailable on plan/visibility).
 name: Reusable CodeQL
 
 on:
@@ -20,7 +20,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Initialize CodeQL
         id: init
@@ -42,4 +42,4 @@ jobs:
       - name: Soft skip notice
         if: steps.init.outcome != 'success'
         run: |
-          echo "::warning::CodeQL init failed or unavailable on this plan/visibility (common on free private repos). Gitleaks + npm audit remain the free security baseline."
+          echo "::warning::CodeQL init failed or unavailable on this plan/visibility. Gitleaks and npm audit remain the security baseline."

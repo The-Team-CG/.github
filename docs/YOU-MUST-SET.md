@@ -1,28 +1,30 @@
-# What **you** must set (only human/account steps left)
+# What you must set
 
-Everything below is free-tier. Code and workflows are already in the repos; these need **your** accounts/tokens/UI.
+Workflows and repo wiring are already in place. These steps need your accounts, tokens, and project settings.
 
 ---
 
-## 1. GitHub org secrets (do once)
+## 1. GitHub org secrets
 
-Org: **The-Team-CG** → Settings → Secrets and variables → Actions → **New organization secret**
+Org **The-Team-CG** → Settings → Secrets and variables → Actions → New organization secret
 
-| Secret name | Where to get it | Used for |
-|-------------|-----------------|----------|
+| Secret | Where to get it | Used for |
+|--------|-----------------|----------|
 | `SONAR_TOKEN` | [SonarCloud](https://sonarcloud.io) → My Account → Security → Generate token | Quality gate |
 | `VERCEL_TOKEN` | [Vercel](https://vercel.com/account/tokens) → Create token | Deploy |
 | `VERCEL_ORG_ID` | Vercel → Team Settings → General → Team ID | Deploy |
-| `NOTIFY_WEBHOOK_URL` | Discord: Channel → Integrations → Webhooks → Copy URL **or** Slack incoming webhook | CI/deploy pings |
+| `NOTIFY_WEBHOOK_URL` | Discord channel webhook or Slack incoming webhook | CI / deploy notifications |
 
-Optional per-repo (if projects differ): repo secret `VERCEL_PROJECT_ID`.
+Optional per-repo: `VERCEL_PROJECT_ID` when projects differ.
 
 ---
 
-## 2. Vercel (Hobby / free)
+## 2. Vercel projects
 
-1. Create a Vercel account and a free team if you want shared access.  
-2. Import each frontend (or `vercel link` from app root). Suggested projects:
+1. Create a Vercel team (or personal account) and connect GitHub **The-Team-CG**.  
+2. Create one project per frontend (root directories below).  
+3. Set repo secret `VERCEL_PROJECT_ID` (or a shared org default).  
+4. Configure **Preview/staging** vs **Production** environment variables separately.
 
 | Repo | Root directory | Suggested project name |
 |------|----------------|------------------------|
@@ -32,93 +34,63 @@ Optional per-repo (if projects differ): repo secret `VERCEL_PROJECT_ID`.
 | prism | `apps/client` | `prism-client` |
 | WOOF_V1 | `frontend` | `woof-web` |
 
-3. For each project, copy **Project ID** → set as repo secret `VERCEL_PROJECT_ID`  
-   (or one org default if you only deploy one app first).  
-4. Add **Environment Variables** separately for **Preview/Staging** vs **Production**  
-   (never point staging at production Supabase keys).
+Runtime for builds: **Node.js 24** (match Vercel project Node version to 24).
 
 ---
 
-## 3. SonarCloud (free)
+## 3. SonarCloud
 
 1. Sign in at https://sonarcloud.io with GitHub.  
-2. Create/import org matching key used in workflows (default `the-team-cg` — change if Sonar shows a different key).  
-3. Install **SonarCloud GitHub App** on **The-Team-CG** (all product repos).  
-4. Create projects (or auto-provision on first scan):
+2. Create/import organization (workflow default key: `the-team-cg` — change if yours differs).  
+3. Install the **SonarCloud GitHub App** on **The-Team-CG**.  
+4. Projects (keys already in repos):
 
-| Project key (already in repo) |
-|-------------------------------|
+| Project key |
+|-------------|
 | `The-Team-CG_capstone-system` |
 | `The-Team-CG_Front-and-back` |
 | `The-Team-CG_PAULUS` |
 | `The-Team-CG_prism` |
 | `The-Team-CG_WOOF_V1` |
 
-5. In each Sonar project quality gate: enable **Clean as You Code** (≈80% coverage on **new** code when coverage reports exist).  
-6. Put token in org secret `SONAR_TOKEN`.
-
-If your Sonar org key is not `the-team-cg`, tell CI via workflow input `organization:` or update the reusable default.
+5. Enable **Clean as You Code** quality gate (target ~80% coverage on **new** code).  
+6. Put the token in org secret `SONAR_TOKEN`.
 
 ---
 
-## 4. Branch protection (free limitation)
+## 4. Branch protection
 
-**Private repos on free GitHub org cannot use branch protection** (API returns 403: “Upgrade to GitHub Pro or make this repository public”).
-
-Free options:
-
-| Option | What to do |
-|--------|------------|
-| **A — keep private** | Team process: always PR into `staging`/`main`; use CODEOWNERS as social rule; admins don’t push direct |
-| **B — make public** | Repo Settings → Danger zone → Change visibility → Public, then enable branch protection (free for public) |
-| **C — pay later** | GitHub Team/Pro → enable protection rules |
-
-If public or paid, Settings → Branches → rule on **`staging`** and **`main`**:
+If your GitHub plan supports branch protection on these repos, enable on **`staging`** and **`main`**:
 
 | Setting | Value |
 |---------|--------|
 | Require a pull request before merging | On |
-| Required approving reviews | **1** |
-| Require review from Code Owners | **On** |
-| Require status checks | On after first green CI |
-| No force pushes / no deletions | On |
+| Required approving reviews | 1 |
+| Require review from Code Owners | On |
+| Require status checks to pass | On (after CI has run once) |
+| Block force pushes / deletions | On |
 
-`main` = production. `staging` = trunk.
-
----
-
-## 5. Staging ≠ production data
-
-For each product that uses Supabase / Mongo / APIs:
-
-| Env | Create |
-|-----|--------|
-| Staging | Separate free Supabase (or DB) project + keys in Vercel **Preview** / staging env |
-| Production | Separate project + keys in Vercel **Production** |
-
-Never reuse production service role keys on staging.
+If branch protection is unavailable on private repos, use team process: PR-only into `staging`/`main`, respect `CODEOWNERS`, no direct pushes to protected lines.
 
 ---
 
-## 6. Notifications (optional but ready)
+## 5. Staging vs production data
 
-1. Create Discord webhook (or Slack incoming webhook).  
+For Supabase / Mongo / APIs: separate projects and keys for staging and production. Never point staging at production service-role credentials.
+
+---
+
+## 6. Notifications (optional)
+
+1. Create Discord or Slack incoming webhook.  
 2. Set org secret `NOTIFY_WEBHOOK_URL`.  
-3. Failures and deploys already call the notify workflow (no-op until secret exists).
+3. CI failure and deploy result jobs already call the notify workflow.
 
 ---
 
 ## 7. Releases (optional)
 
-Actions → **Release** → Run workflow → enter version `1.0.0` (creates tag `v1.0.0` on `main`).  
-Update `CHANGELOG.md` in the same PR when you cut a release.
-
----
-
-## 8. What you do **not** need to buy
-
-- GitHub Team (env required reviewers) — use CODEOWNERS + PR reviews  
-- Codecov Pro / Snyk paid / Vercel Pro / paid Slack  
+Actions → **Release** → Run workflow → version e.g. `1.0.0` (creates `v1.0.0` on `main`). Update `CHANGELOG.md` when cutting a release.
 
 ---
 
@@ -126,11 +98,10 @@ Update `CHANGELOG.md` in the same PR when you cut a release.
 
 - [ ] Org secrets: `SONAR_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`  
 - [ ] Optional: `NOTIFY_WEBHOOK_URL`  
-- [ ] Vercel projects + per-repo `VERCEL_PROJECT_ID`  
-- [ ] Vercel env vars (staging vs prod)  
+- [ ] Vercel projects + `VERCEL_PROJECT_ID` (Node **24**)  
+- [ ] Vercel env vars (staging ≠ prod)  
 - [ ] SonarCloud app + projects + quality gate  
-- [ ] Branch protection on `staging` + `main`  
+- [ ] Branch protection on `staging` + `main` (if available)  
 - [ ] Separate staging/prod backends  
-- [ ] (Optional) Watch repos for email; confirm Discord/Slack pings  
 
-After secrets exist, push any commit to `staging` to verify CI → Sonar → deploy → smoke → notify.
+After secrets exist, push to `staging` and confirm Actions: CI → security → Sonar → deploy → smoke → notify.

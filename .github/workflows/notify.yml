@@ -1,4 +1,4 @@
-# Free notifications via Discord/Slack incoming webhook.
+﻿# notifications via Discord/Slack incoming webhook.
 # Org/repo secret: NOTIFY_WEBHOOK_URL
 # Call:
 #   uses: The-Team-CG/.github/.github/workflows/notify.yml@main
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${WEBHOOK:-}" ]; then
-            echo "::warning::NOTIFY_WEBHOOK_URL not set — notification skipped (free webhook secret)."
+            echo "::warning::NOTIFY_WEBHOOK_URL not set â€” notification skipped."
             exit 0
           fi
           # Slack-compatible payload also works for many Discord slack-compatible webhooks

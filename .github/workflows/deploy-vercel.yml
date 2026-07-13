@@ -1,4 +1,4 @@
-# Reusable Vercel deploy for The-Team-CG (free Hobby-friendly).
+﻿# Reusable Vercel deploy for The-Team-CG.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 # Optional smoke: smoke_url (full URL) or uses deployment URL + smoke_path
 name: Reusable Vercel Deploy
@@ -25,7 +25,7 @@ on:
       node_version:
         type: string
         required: false
-        default: "22"
+        default: "24"
       smoke_url:
         description: Full URL to smoke-check (optional; else deployment URL)
         type: string
@@ -74,12 +74,13 @@ jobs:
           esac
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.node_version }}
+          check-latest: true
 
       - name: Resolve credentials
         id: creds
@@ -101,7 +102,7 @@ jobs:
           ORG_ID="${INPUT_ORG:-$SECRET_ORG}"
           PROJECT_ID="${INPUT_PROJECT:-$SECRET_PROJECT}"
           if [ -z "${ORG_ID}" ] || [ -z "${PROJECT_ID}" ]; then
-            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing — skip deploy."
+            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing â€” skip deploy."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -161,7 +162,7 @@ jobs:
           echo "Deployed: $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke check (free curl)
+      - name: Smoke check \(curl\)
         if: steps.creds.outputs.skip != 'true' && inputs.run_smoke
         shell: bash
         env:
@@ -196,4 +197,4 @@ jobs:
       - name: Skip notice
         if: steps.creds.outputs.skip == 'true'
         run: |
-          echo "::warning::Vercel credentials missing — deploy skipped for environment '${{ inputs.environment }}'."
+          echo "::warning::Vercel credentials missing â€” deploy skipped for environment '${{ inputs.environment }}'."

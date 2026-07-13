@@ -1,4 +1,4 @@
-# Free secret-leak scan (gitleaks). Fails the job if secrets are found.
+﻿# secret-leak scan (gitleaks). Fails the job if secrets are found.
 name: Reusable Gitleaks
 
 on:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

@@ -1,4 +1,4 @@
-# Free versioning: create an annotated git tag on demand (no paid release SaaS).
+﻿# versioning: create an annotated git tag on demand (no paid release SaaS).
 # Call via workflow_dispatch from product repos or run as reusable.
 name: Reusable Release Tag
 
@@ -28,7 +28,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ inputs.target_ref }}
@@ -53,7 +53,7 @@ jobs:
           fi
           MSG="Release $TAG"
           if [ -n "${{ inputs.changelog_entry }}" ]; then
-            MSG="$MSG — ${{ inputs.changelog_entry }}"
+            MSG="$MSG â€” ${{ inputs.changelog_entry }}"
           fi
           git config user.name "The-Team-CG CI"
           git config user.email "cicd@the-team-cg.local"
