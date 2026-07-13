@@ -1,5 +1,4 @@
-# Free release tagging — copy to product repo as .github/workflows/release.yml
-name: Release
+﻿# name: Release
 
 on:
   workflow_dispatch:

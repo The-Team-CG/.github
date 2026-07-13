@@ -1,5 +1,4 @@
-# Free Dependabot — copy to product repo as .github/dependabot.yml
-version: 2
+﻿# version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
