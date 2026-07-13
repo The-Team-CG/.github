@@ -1,0 +1,60 @@
+# Free notifications via Discord/Slack incoming webhook.
+# Org/repo secret: NOTIFY_WEBHOOK_URL
+# Call:
+#   uses: The-Team-CG/.github/.github/workflows/notify.yml@main
+name: Reusable Notify
+
+on:
+  workflow_call:
+    inputs:
+      status:
+        description: success | failure | cancelled | info
+        type: string
+        required: true
+      title:
+        description: Short title
+        type: string
+        required: true
+      message:
+        description: Body text
+        type: string
+        required: false
+        default: ""
+      environment:
+        description: staging | production | ci | other
+        type: string
+        required: false
+        default: "ci"
+
+jobs:
+  notify:
+    name: Notify (${{ inputs.status }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send webhook
+        shell: bash
+        env:
+          WEBHOOK: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          STATUS: ${{ inputs.status }}
+          TITLE: ${{ inputs.title }}
+          MESSAGE: ${{ inputs.message }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::warning::NOTIFY_WEBHOOK_URL not set — notification skipped (free webhook secret)."
+            exit 0
+          fi
+          # Slack-compatible payload also works for many Discord slack-compatible webhooks
+          text="*${TITLE}*
+status=\`${STATUS}\` env=\`${ENVIRONMENT}\`
+repo=\`${REPO}\` ref=\`${REF}\` sha=\`${SHA:0:7}\`
+${MESSAGE}
+${RUN_URL}"
+          payload=$(printf '%s' "$text" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')
+          curl -sS -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null
+          echo "Notification sent."

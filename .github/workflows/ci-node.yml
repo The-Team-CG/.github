@@ -37,10 +37,15 @@ on:
         required: false
         default: ""
       test_command:
-        description: Test command; empty skips
+        description: Test command (include coverage when ready, e.g. npm test -- --coverage); empty skips
         type: string
         required: false
         default: ""
+      audit_command:
+        description: Dependency audit (free); default npm audit --audit-level=high; set empty to skip
+        type: string
+        required: false
+        default: "npm audit --audit-level=high"
       build_command:
         description: Build command; empty skips
         type: string
@@ -104,6 +109,19 @@ jobs:
               ;;
           esac
 
+      - name: Dependency audit (free)
+        if: inputs.audit_command != ''
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          eval "${{ inputs.audit_command }}"
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "::warning::Dependency audit reported issues (exit $code). Fix before requiring hard-fail."
+          fi
+          exit 0
+
       - name: Lint
         if: inputs.lint_command != ''
         env:
@@ -126,7 +144,7 @@ jobs:
         shell: bash
         run: eval "${{ inputs.typecheck_command }}"
 
-      - name: Test
+      - name: Test (+ coverage when command includes it)
         if: inputs.test_command != ''
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co

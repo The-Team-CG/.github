@@ -53,10 +53,14 @@ jobs:
 
 | Workflow | File | Purpose |
 |----------|------|---------|
-| Node CI | `.github/workflows/ci-node.yml` | install / lint / typecheck / test / build |
+| Node CI | `.github/workflows/ci-node.yml` | install / **npm audit** / lint / typecheck / test (+ coverage) / build |
 | Python CI | `.github/workflows/ci-python.yml` | optional Python packages |
 | SonarCloud | `.github/workflows/sonar.yml` | scan + quality gate wait |
 | Vercel deploy | `.github/workflows/deploy-vercel.yml` | deploy with `environment: staging` or `production` |
+| Notify | `.github/workflows/notify.yml` | free Discord/Slack webhook (`NOTIFY_WEBHOOK_URL`) |
+| Release tag | `.github/workflows/release-tag.yml` | free semver tags `vX.Y.Z` |
+
+See **`docs/WHAT-WE-NEED.md`** for coverage (~80%), security, versioning, notifications backlog.
 
 ## GitHub Environments (prod gate)
 
@@ -79,17 +83,20 @@ gh api -X PUT repos/The-Team-CG/<repo>/environments/staging
 gh api -X PUT repos/The-Team-CG/<repo>/environments/production
 ```
 
-## Org secrets (recommended)
+## Org secrets (recommended, free)
 
 | Secret | Purpose |
 |--------|---------|
-| `SONAR_TOKEN` | SonarCloud |
+| `SONAR_TOKEN` | SonarCloud free |
 | `VERCEL_TOKEN` | Vercel CLI deploy |
 | `VERCEL_ORG_ID` | Vercel team/org id |
 | `VERCEL_PROJECT_ID` | Default project (or set per-repo / per-job input) |
+| `NOTIFY_WEBHOOK_URL` | Discord/Slack incoming webhook (optional) |
 
-If secrets are missing, Sonar and deploy jobs **skip with a warning** so pipelines stay valid offline.
+If secrets are missing, Sonar / deploy / notify **skip with a warning** so pipelines stay valid offline.
 
 ## Docs
 
-See `docs/ENVIRONMENTS.md` for the approval runbook.
+- `docs/WHAT-WE-NEED.md` — full free-tier backlog (coverage, security, versioning, notifications)
+- `docs/ENVIRONMENTS.md` — staging/prod gates on free org
+- `templates/` — Dependabot, CODEOWNERS, release dispatch

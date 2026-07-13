@@ -17,7 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 
 REQUIRED_FILES = {
-    "ci-node.yml": [r"on:\s*\n\s*workflow_call:", r"name:\s*Reusable Node CI"],
+    "ci-node.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"name:\s*Reusable Node CI",
+        r"audit_command",
+        r"Dependency audit",
+    ],
     "sonar.yml": [r"on:\s*\n\s*workflow_call:", r"project_key", r"SONAR_TOKEN"],
     "deploy-vercel.yml": [
         r"on:\s*\n\s*workflow_call:",
@@ -26,6 +31,8 @@ REQUIRED_FILES = {
         r"environment must be staging or production",
     ],
     "ci-python.yml": [r"on:\s*\n\s*workflow_call:"],
+    "notify.yml": [r"on:\s*\n\s*workflow_call:", r"NOTIFY_WEBHOOK_URL"],
+    "release-tag.yml": [r"on:\s*\n\s*workflow_call:", r"version"],
 }
 
 

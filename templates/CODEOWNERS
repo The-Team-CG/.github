@@ -1,0 +1,5 @@
+# Free prod-gate helper — copy to product repo as .github/CODEOWNERS
+# Require reviews via branch protection: "Require review from Code Owners"
+# Replace with real GitHub usernames/teams for The-Team-CG.
+
+*       @antoneeeeems

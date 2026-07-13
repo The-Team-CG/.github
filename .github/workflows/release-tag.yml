@@ -1,0 +1,62 @@
+# Free versioning: create an annotated git tag on demand (no paid release SaaS).
+# Call via workflow_dispatch from product repos or run as reusable.
+name: Reusable Release Tag
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Semver without leading v, e.g. 1.2.0
+        type: string
+        required: true
+      target_ref:
+        description: Git ref to tag (default main)
+        type: string
+        required: false
+        default: "main"
+      changelog_entry:
+        description: Optional one-line release note
+        type: string
+        required: false
+        default: ""
+
+jobs:
+  tag:
+    name: Tag v${{ inputs.version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.target_ref }}
+
+      - name: Validate semver
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "version must look like 1.2.3"
+            exit 1
+          fi
+
+      - name: Create and push tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${{ inputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            exit 1
+          fi
+          MSG="Release $TAG"
+          if [ -n "${{ inputs.changelog_entry }}" ]; then
+            MSG="$MSG — ${{ inputs.changelog_entry }}"
+          fi
+          git config user.name "The-Team-CG CI"
+          git config user.email "cicd@the-team-cg.local"
+          git tag -a "$TAG" -m "$MSG"
+          git push origin "$TAG"
+          echo "Pushed $TAG"
