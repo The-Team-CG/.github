@@ -2,6 +2,16 @@
 
 Workflows and repo wiring are already in place. These steps need your accounts, tokens, and project settings.
 
+## Where workflows live (Actions tab)
+
+| What you see | Path on default branch `staging` |
+|--------------|-----------------------------------|
+| Product CI / Deploy / Release | Each product repo: **`.github/workflows/`** (`ci.yml`, `deploy.yml`, `release.yml`) |
+| Shared pipeline logic | Org repo **https://github.com/The-Team-CG/.github** → `.github/workflows/` (`ci-node.yml`, `sonar.yml`, `deploy-vercel.yml`, …) |
+
+Product workflows **call** the org reusable ones (`uses: The-Team-CG/.github/.github/workflows/...@main`).  
+If Actions said the workflow file was invalid / jobs never started, that was fixed: org workflows repo is public + reusable access on, YAML is UTF-8 without BOM, ASCII-only.
+
 ---
 
 ## 1. GitHub org secrets

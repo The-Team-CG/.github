@@ -1,4 +1,4 @@
-# secret-leak scan (gitleaks). Fails the job if secrets are found.
+# Secret-leak scan using gitleaks CLI (no paid action license).
 name: Reusable Gitleaks
 
 on:
@@ -14,7 +14,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER=$(curl -sL https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r .tag_name)
+          VER_NUM="${VER#v}"
+          curl -sL "https://github.com/gitleaks/gitleaks/releases/download/${VER}/gitleaks_${VER_NUM}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
+          sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Detect secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gitleaks detect --source . --verbose --redact --exit-code 1

@@ -1,6 +1,6 @@
 # Reusable Vercel deploy for The-Team-CG.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
-# Optional smoke: smoke_url (full URL) or uses deployment URL + smoke_path
+# Without secrets, deploy is skipped with a warning (job succeeds).
 name: Reusable Vercel Deploy
 
 on:
@@ -57,9 +57,6 @@ jobs:
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
       skipped: ${{ steps.creds.outputs.skip }}
-    defaults:
-      run:
-        working-directory: ${{ inputs.working_directory }}
     steps:
       - name: Validate environment name
         shell: bash
@@ -75,6 +72,23 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Resolve app directory
+        id: dir
+        shell: bash
+        run: |
+          set -euo pipefail
+          wd="${{ inputs.working_directory }}"
+          if [ -z "$wd" ] || [ "$wd" = "." ]; then
+            echo "path=." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -d "$wd" ]; then
+            echo "::warning::working_directory '$wd' not found; using repo root"
+            echo "path=." >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$wd" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -102,7 +116,7 @@ jobs:
           ORG_ID="${INPUT_ORG:-$SECRET_ORG}"
           PROJECT_ID="${INPUT_PROJECT:-$SECRET_PROJECT}"
           if [ -z "${ORG_ID}" ] || [ -z "${PROJECT_ID}" ]; then
-            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing â€” skip deploy."
+            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing — skip deploy."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -119,10 +133,12 @@ jobs:
 
       - name: Install Vercel CLI
         if: steps.creds.outputs.skip != 'true'
+        working-directory: ${{ steps.dir.outputs.path }}
         run: npm install -g vercel@latest
 
       - name: Pull Vercel environment
         if: steps.creds.outputs.skip != 'true'
+        working-directory: ${{ steps.dir.outputs.path }}
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -132,6 +148,7 @@ jobs:
 
       - name: Build project artifacts
         if: steps.creds.outputs.skip != 'true'
+        working-directory: ${{ steps.dir.outputs.path }}
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -147,6 +164,7 @@ jobs:
       - name: Deploy prebuilt to Vercel
         id: deploy
         if: steps.creds.outputs.skip != 'true'
+        working-directory: ${{ steps.dir.outputs.path }}
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -162,7 +180,7 @@ jobs:
           echo "Deployed: $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke check \(curl\)
+      - name: Smoke check (curl)
         if: steps.creds.outputs.skip != 'true' && inputs.run_smoke
         shell: bash
         env:
@@ -181,7 +199,6 @@ jobs:
             esac
           fi
           echo "Smoke GET $target"
-          # retry a few times for cold starts
           for i in 1 2 3 4 5; do
             code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 "$target" || echo "000")
             echo "attempt $i -> HTTP $code"
@@ -197,4 +214,4 @@ jobs:
       - name: Skip notice
         if: steps.creds.outputs.skip == 'true'
         run: |
-          echo "::warning::Vercel credentials missing â€” deploy skipped for environment '${{ inputs.environment }}'."
+          echo "::warning::Vercel credentials missing — deploy skipped for environment '${{ inputs.environment }}'. Job succeeds; add secrets later."

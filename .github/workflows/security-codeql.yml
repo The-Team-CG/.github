@@ -1,4 +1,4 @@
-# CodeQL analysis (continues soft if unavailable on plan/visibility).
+# CodeQL analysis — soft when Advanced Security is unavailable.
 name: Reusable CodeQL
 
 on:
@@ -35,11 +35,17 @@ jobs:
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
+        id: analyze
         if: steps.init.outcome == 'success'
         continue-on-error: true
         uses: github/codeql-action/analyze@v3
 
-      - name: Soft skip notice
-        if: steps.init.outcome != 'success'
+      - name: Soft result
+        if: always()
+        shell: bash
         run: |
-          echo "::warning::CodeQL init failed or unavailable on this plan/visibility. Gitleaks and npm audit remain the security baseline."
+          if [ "${{ steps.init.outcome }}" != "success" ] || [ "${{ steps.analyze.outcome }}" = "failure" ]; then
+            echo "::warning::CodeQL skipped or incomplete (often needs Advanced Security on private repos). Pipeline continues."
+          else
+            echo "CodeQL completed."
+          fi
