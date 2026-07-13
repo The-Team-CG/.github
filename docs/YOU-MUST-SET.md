@@ -53,8 +53,10 @@ Runtime for builds: **Node.js 24** (match Vercel project Node version to 24).
 | `The-Team-CG_prism` |
 | `The-Team-CG_WOOF_V1` |
 
-5. Enable **Clean as You Code** quality gate (target ~80% coverage on **new** code).  
-6. Put the token in org secret `SONAR_TOKEN`.
+5. Enable **Clean as You Code**. For practice, set coverage on **new code ≥ 60%** (industry later: 80%).  
+6. Put the token in org secret `SONAR_TOKEN`.  
+
+CI unit thresholds (where tests exist): **50%** lines/statements/functions, **40%** branches — see `docs/COVERAGE.md`.
 
 ---
 

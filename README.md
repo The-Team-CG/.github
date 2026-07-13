@@ -1,4 +1,4 @@
-# The-Team-CG org `.github`
+﻿# The-Team-CG org `.github`
 
 Reusable GitHub Actions workflows and org defaults for **The-Team-CG**.
 
@@ -87,9 +87,11 @@ When Environment required reviewers are not available, use **CODEOWNERS + requir
 
 If secrets are missing, Sonar / deploy / notify **skip with a warning** so pipelines stay valid offline.
 
+Coverage practice bar: **50%** lines/functions/statements, **40%** branches (see `docs/COVERAGE.md`).
+
 ## Docs
 
-- `docs/YOU-MUST-SET.md` — what humans must configure  
-- `docs/WHAT-WE-NEED.md` — backlog (coverage, security, versioning, notifications)  
-- `docs/ENVIRONMENTS.md` — staging/prod gates  
-- `templates/` — Dependabot, CODEOWNERS, release dispatch  
+- `docs/YOU-MUST-SET.md` â€” what humans must configure  
+- `docs/WHAT-WE-NEED.md` â€” backlog (coverage, security, versioning, notifications)  
+- `docs/ENVIRONMENTS.md` â€” staging/prod gates  
+- `templates/` â€” Dependabot, CODEOWNERS, release dispatch  

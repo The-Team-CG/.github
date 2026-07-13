@@ -36,9 +36,13 @@ Human setup only: **[YOU-MUST-SET.md](./YOU-MUST-SET.md)**.
 | WOOF_V1 backend | `npm run test:cov` |
 | Others | Build/lint until suites exist; then set `test_command` |
 
-## Raise toward 80% coverage
+## Coverage (practice bar — looser than industry 80%)
 
-1. Write tests product-by-product.  
-2. Emit coverage from `test_command` (jest/vitest).  
-3. Sonar quality gate on **new code** ≥80%.  
-4. Later raise jest/vitest `coverageThreshold` global toward 80%.
+| Metric | Practice (now) | Industry (later) |
+|--------|----------------|------------------|
+| Lines / statements / functions | **50%** | 80% |
+| Branches | **40%** | 75% |
+| Sonar **new code** (UI) | **≥ 60%** | ≥ 80% |
+
+Enforced in CI today: **prism API** (`test:api:coverage`), **WOOF backend** (`test:cov`).  
+Details: org repo `docs/COVERAGE.md`.
