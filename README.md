@@ -2,6 +2,8 @@
 
 Reusable GitHub Actions workflows and org defaults for **The-Team-CG**.
 
+**Budget:** free tier first for everything (GitHub Free, Vercel Hobby limits, SonarCloud free, free webhooks). Do not add paid-only gates without an explicit upgrade decision.
+
 ## Branch model (product repos)
 
 | Branch | Role |
@@ -56,26 +58,26 @@ jobs:
 | SonarCloud | `.github/workflows/sonar.yml` | scan + quality gate wait |
 | Vercel deploy | `.github/workflows/deploy-vercel.yml` | deploy with `environment: staging` or `production` |
 
-## GitHub Environments (manual prod approval)
+## GitHub Environments (prod gate)
 
 Configure on **each product repo** (Settings → Environments):
 
-| Environment | Required reviewers | Used by |
+| Environment | Free org | Used by |
 |-------------|-------------------|---------|
-| `staging` | None (auto) | `deploy-vercel` with `environment: staging` |
-| `production` | **Yes** — add team/admins | `deploy-vercel` with `environment: production` |
+| `staging` | Auto deploy | `deploy-vercel` with `environment: staging` |
+| `production` | Env exists; **required reviewers usually need Team+** | `deploy-vercel` with `environment: production` |
 
-When a job specifies `environment: production`, Actions pauses until a required reviewer clicks **Review deployments**. That is the manual prod approval path.
+**Free org (current):** use branch protection + PR reviews / CODEOWNERS on `main` as the human gate. See `docs/ENVIRONMENTS.md`.
+
+**If you ever pay for Team+:** Required reviewers on `production` pause the job until **Review deployments**.
 
 ### CLI notes
 
 ```bash
-# Create environments (reviewers often need UI or API with user IDs)
+# Create environments (reviewers may 422 on free plan)
 gh api -X PUT repos/The-Team-CG/<repo>/environments/staging
 gh api -X PUT repos/The-Team-CG/<repo>/environments/production
 ```
-
-Required reviewers are best set in the GitHub UI (Settings → Environments → production → Required reviewers) if the API payload is awkward for your plan tier.
 
 ## Org secrets (recommended)
 

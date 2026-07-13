@@ -1,32 +1,47 @@
 # Environments & production approval runbook
 
+**Cost rule:** free tier first (GitHub Free org, free Vercel, free SonarCloud). Do not assume Team/Enterprise features.
+
 ## Environments
 
 | Name | Deploy behavior |
 |------|-----------------|
 | `staging` | Automatic after CI + Sonar on push to `staging` |
-| `production` | Job waits for **Required reviewers** before Vercel `--prod` deploy |
+| `production` | Job uses `environment: production` (label + secrets scope). **Required reviewers often need GitHub Team+** |
 
-## How manual prod approval works
+## Free-org reality
 
-1. PR `staging` → `main` merges (CI green).
-2. Deploy workflow runs job with `environment: production`.
-3. GitHub Actions shows **Review deployments**.
-4. Approver confirms → `deploy-vercel` continues.
+`The-Team-CG` is on a **free** plan. Creating production **required reviewers** returned HTTP 422. Environments still exist for naming and future use.
 
-This is a workflow Environment gate, not a chat-only process.
+### Free prod gate (use this now)
+
+1. Branch protection on `main`: require PR, ≥1 approving review, required status checks (CI).  
+2. Optional **CODEOWNERS** so designated owners must approve.  
+3. Optional: change prod deploy to `workflow_dispatch` only (manual “Run workflow”) for a zero-cost human gate.  
+4. Staging stays auto-deploy on green CI.
+
+### Team+ path (only if you ever upgrade)
+
+1. Environment `production` → Required reviewers.  
+2. Actions shows **Review deployments** before Vercel `--prod`.
 
 ## Setup checklist (per product repo)
 
-1. Settings → Environments → create `staging`, `production`
-2. On `production`: enable **Required reviewers** (add org admins/team)
-3. Optionally restrict deployment branches to `main` for `production`
-4. Optionally restrict `staging` environment to branch `staging`
-5. Ensure org secrets exist: `SONAR_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`
-6. Set repo secret or input `VERCEL_PROJECT_ID` for each deployable app
+1. Settings → Environments → ensure `staging`, `production` exist  
+2. **Free:** branch protection + reviews on `main` (do not rely on env reviewers)  
+3. **If Team+:** on `production` enable Required reviewers  
+4. Optionally restrict deployment branches to `main` for `production`  
+5. Optionally restrict `staging` environment to branch `staging`  
+6. Org secrets (free): `SONAR_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`  
+7. Repo secret or input `VERCEL_PROJECT_ID` for each deployable app  
 
-## SonarCloud
+## SonarCloud (free)
 
-- Org key (default in workflow): `the-team-cg` — change via `organization` input if SonarCloud org key differs
-- Project keys: `The-Team-CG_<RepoName>` (e.g. `The-Team-CG_PAULUS`)
-- Install SonarCloud GitHub App on The-Team-CG org for PR decoration
+- Org key (default in workflow): `the-team-cg` — change via `organization` input if SonarCloud org key differs  
+- Project keys: `The-Team-CG_<RepoName>` (e.g. `The-Team-CG_PAULUS`)  
+- Install SonarCloud GitHub App on The-Team-CG org for PR decoration  
+- Stay within free analysis limits; prefer **in-CI coverage thresholds** so quality does not depend on paid SaaS  
+
+## Notifications (free)
+
+Prefer Discord or Slack **incoming webhooks** (no paid bot seats required). Wire later via org secret `NOTIFY_WEBHOOK_URL`.
