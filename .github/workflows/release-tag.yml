@@ -1,4 +1,4 @@
-﻿# versioning: create an annotated git tag on demand (no paid release SaaS).
+# versioning: create an annotated git tag on demand (no paid release SaaS).
 # Call via workflow_dispatch from product repos or run as reusable.
 name: Reusable Release Tag
 

@@ -1,4 +1,4 @@
-﻿# Reusable Node.js CI for The-Team-CG product repos.
+# Reusable Node.js CI for The-Team-CG product repos.
 # Call from product repos:
 #   uses: The-Team-CG/.github/.github/workflows/ci-node.yml@main
 name: Reusable Node CI

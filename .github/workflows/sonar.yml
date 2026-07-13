@@ -1,4 +1,4 @@
-﻿# Reusable SonarCloud scan + quality gate for The-Team-CG.
+# Reusable SonarCloud scan + quality gate for The-Team-CG.
 # Requires org/repo secret: SONAR_TOKEN
 # Call from product repos:
 #   uses: The-Team-CG/.github/.github/workflows/sonar.yml@main

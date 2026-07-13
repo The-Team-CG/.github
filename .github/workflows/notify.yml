@@ -1,4 +1,4 @@
-﻿# notifications via Discord/Slack incoming webhook.
+# notifications via Discord/Slack incoming webhook.
 # Org/repo secret: NOTIFY_WEBHOOK_URL
 # Call:
 #   uses: The-Team-CG/.github/.github/workflows/notify.yml@main

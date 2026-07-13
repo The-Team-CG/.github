@@ -1,4 +1,4 @@
-﻿# Reusable Python CI (e.g. PAULUS analytics).
+# Reusable Python CI (e.g. PAULUS analytics).
 name: Reusable Python CI
 
 on:

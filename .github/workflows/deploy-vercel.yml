@@ -1,4 +1,4 @@
-﻿# Reusable Vercel deploy for The-Team-CG.
+# Reusable Vercel deploy for The-Team-CG.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
 # Optional smoke: smoke_url (full URL) or uses deployment URL + smoke_path
 name: Reusable Vercel Deploy

@@ -1,4 +1,4 @@
-﻿# secret-leak scan (gitleaks). Fails the job if secrets are found.
+# secret-leak scan (gitleaks). Fails the job if secrets are found.
 name: Reusable Gitleaks
 
 on:

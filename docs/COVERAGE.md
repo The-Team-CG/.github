@@ -1,39 +1,30 @@
 # Coverage policy (practice bar)
 
-Teams are learning — thresholds are **looser than industry 80%** so people can practice shipping tests without an impossible cliff.
+Thresholds are **looser than industry 80%** so teams can practice shipping tests.
 
-## CI thresholds (where suites already run)
+## Practice thresholds
 
-| Metric | Practice gate | Industry target (later) |
-|--------|---------------|-------------------------|
+| Metric | Practice (CI now) | Industry later |
+|--------|-------------------|----------------|
 | Lines | **50%** | 80% |
 | Statements | **50%** | 80% |
 | Functions | **50%** | 80% |
 | Branches | **40%** | 75% |
+| Sonar new code (UI) | **≥ 60%** | ≥ 80% |
 
-**Enforced today**
+## Where CI enforces it
 
-| Package | Tool | How |
-|---------|------|-----|
-| `prism` API | Vitest | `npm run test:api:coverage` + thresholds in `vitest.config.ts` |
-| `WOOF_V1/backend` | Jest | `npm run test:cov` + `coverageThreshold` in `package.json` |
+| Product | Package | How |
+|---------|---------|-----|
+| capstone-system | `capstone-system/unified` | Node built-in test + `practice/` + `test:coverage` |
+| Front-and-back | `Front-End-Dashboard`, `Back-End` | same |
+| PAULUS | `src/frontend`, `src/backend` | same (workspaces) |
+| prism | API (vitest full suite) + `apps/client` practice | `test:api:coverage` + client `test:coverage` |
+| WOOF_V1 | `frontend` practice + `backend` jest | `test:coverage` / `test:cov` |
 
-**Not enforced yet** (no meaningful suite): capstone-system, Front-and-back, PAULUS frontend, prism frontends, WOOF frontend — report when tests exist; then apply the same practice numbers.
+Each app that did not already have a suite gets a small `practice/` folder (`sum.mjs` + tests).  
+**Replace/expand `practice/` with real app tests over time** — keep the same thresholds.
 
-## SonarCloud (you configure in UI)
+## SonarCloud UI
 
-Recommended quality gate for **new code** while practicing:
-
-| Condition on new code | Practice | Later |
-|----------------------|----------|--------|
-| Coverage | **≥ 60%** | ≥ 80% |
-| Duplications | ≤ 5% | ≤ 3% |
-| Maintainability / reliability / security | defaults | tighten as needed |
-
-Industry default is often **80% on new code**; we start lower so green CI is reachable while habits form.
-
-## Raising the bar
-
-1. Keep writing tests on every PR.  
-2. When most packages sit comfortably above 50%, bump CI to **60/60/60/50**.  
-3. When ready for industry parity, move to **80/80/80/75** and Sonar new code **80%**.
+Set quality gate on **new code** coverage to **≥ 60%** while practicing (raise to 80% later).
