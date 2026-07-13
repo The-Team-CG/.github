@@ -61,22 +61,29 @@ If your Sonar org key is not `the-team-cg`, tell CI via workflow input `organiza
 
 ---
 
-## 4. Branch protection (free — enable if not already)
+## 4. Branch protection (free limitation)
 
-Repo → Settings → Branches → Add rule (do for **`staging`** and **`main`**):
+**Private repos on free GitHub org cannot use branch protection** (API returns 403: “Upgrade to GitHub Pro or make this repository public”).
+
+Free options:
+
+| Option | What to do |
+|--------|------------|
+| **A — keep private** | Team process: always PR into `staging`/`main`; use CODEOWNERS as social rule; admins don’t push direct |
+| **B — make public** | Repo Settings → Danger zone → Change visibility → Public, then enable branch protection (free for public) |
+| **C — pay later** | GitHub Team/Pro → enable protection rules |
+
+If public or paid, Settings → Branches → rule on **`staging`** and **`main`**:
 
 | Setting | Value |
 |---------|--------|
 | Require a pull request before merging | On |
 | Required approving reviews | **1** |
-| Require review from Code Owners | **On** (`CODEOWNERS` already present) |
-| Require status checks to pass | On when CI has run once; pick **CI** jobs you care about |
-| Do not allow force pushes | On |
-| Do not allow deletions | On |
+| Require review from Code Owners | **On** |
+| Require status checks | On after first green CI |
+| No force pushes / no deletions | On |
 
-`main` = production path. `staging` = trunk.
-
-*(Scripts may have applied a baseline via API; double-check in the UI.)*
+`main` = production. `staging` = trunk.
 
 ---
 
