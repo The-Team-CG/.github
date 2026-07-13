@@ -33,6 +33,8 @@ REQUIRED_FILES = {
     "ci-python.yml": [r"on:\s*\n\s*workflow_call:"],
     "notify.yml": [r"on:\s*\n\s*workflow_call:", r"NOTIFY_WEBHOOK_URL"],
     "release-tag.yml": [r"on:\s*\n\s*workflow_call:", r"version"],
+    "security-gitleaks.yml": [r"on:\s*\n\s*workflow_call:", r"gitleaks"],
+    "security-codeql.yml": [r"on:\s*\n\s*workflow_call:", r"codeql"],
 }
 
 

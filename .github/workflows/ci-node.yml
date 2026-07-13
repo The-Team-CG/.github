@@ -111,14 +111,15 @@ jobs:
 
       - name: Dependency audit (free)
         if: inputs.audit_command != ''
-        continue-on-error: true
         shell: bash
         run: |
           set +e
           eval "${{ inputs.audit_command }}"
           code=$?
           if [ "$code" -ne 0 ]; then
-            echo "::warning::Dependency audit reported issues (exit $code). Fix before requiring hard-fail."
+            # Soft-fail by default: many legacy apps have high findings; still surface in logs.
+            # Set audit_command to a wrapper that exits 0, or clean deps then treat as hard gate in product policy.
+            echo "::warning::Dependency audit reported issues (exit $code). Fix high/critical CVEs ASAP."
           fi
           exit 0
 
@@ -155,6 +156,20 @@ jobs:
           CI: "true"
         shell: bash
         run: eval "${{ inputs.test_command }}"
+
+      - name: Upload coverage artifact (free)
+        if: inputs.test_command != ''
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: coverage-${{ github.run_id }}-${{ github.job }}
+          path: |
+            ${{ inputs.working_directory }}/coverage/**
+            ${{ inputs.working_directory }}/**/coverage/**
+            ${{ inputs.working_directory }}/lcov.info
+            ${{ inputs.working_directory }}/**/lcov.info
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build
         if: inputs.build_command != ''

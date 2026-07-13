@@ -1,0 +1,45 @@
+# Free CodeQL where GitHub allows (public free; private may need GHAS — then job skips/soft-fails).
+name: Reusable CodeQL
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: Comma-separated CodeQL languages
+        type: string
+        required: false
+        default: "javascript-typescript"
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        id: init
+        continue-on-error: true
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ inputs.languages }}
+
+      - name: Autobuild
+        if: steps.init.outcome == 'success'
+        continue-on-error: true
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        if: steps.init.outcome == 'success'
+        continue-on-error: true
+        uses: github/codeql-action/analyze@v3
+
+      - name: Soft skip notice
+        if: steps.init.outcome != 'success'
+        run: |
+          echo "::warning::CodeQL init failed or unavailable on this plan/visibility (common on free private repos). Gitleaks + npm audit remain the free security baseline."

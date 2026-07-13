@@ -1,29 +1,24 @@
-# Reusable Vercel deploy for The-Team-CG.
-# Targets GitHub Environments: staging (auto) | production (manual required reviewers).
-# Requires secrets (org or repo): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
-# Call from product repos:
-#   uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+# Reusable Vercel deploy for The-Team-CG (free Hobby-friendly).
+# Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Optional smoke: smoke_url (full URL) or uses deployment URL + smoke_path
 name: Reusable Vercel Deploy
 
 on:
   workflow_call:
     inputs:
       environment:
-        description: GitHub Environment name — must be staging or production
+        description: staging | production
         type: string
         required: true
       working_directory:
-        description: Vercel project root relative to repo
         type: string
         required: false
         default: "."
       vercel_org_id:
-        description: Optional override; else secret VERCEL_ORG_ID
         type: string
         required: false
         default: ""
       vercel_project_id:
-        description: Optional override; else secret VERCEL_PROJECT_ID
         type: string
         required: false
         default: ""
@@ -31,14 +26,37 @@ on:
         type: string
         required: false
         default: "22"
+      smoke_url:
+        description: Full URL to smoke-check (optional; else deployment URL)
+        type: string
+        required: false
+        default: ""
+      smoke_path:
+        description: Path appended to deployment URL when smoke_url empty
+        type: string
+        required: false
+        default: "/"
+      run_smoke:
+        description: curl smoke after deploy
+        type: boolean
+        required: false
+        default: true
+    outputs:
+      deployment_url:
+        description: Deployed URL when deploy ran
+        value: ${{ jobs.deploy.outputs.deployment_url }}
+      skipped:
+        description: true if credentials missing
+        value: ${{ jobs.deploy.outputs.skipped }}
 
 jobs:
   deploy:
     name: Deploy to ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    # Critical: production uses environment: production so Required reviewers can gate the job.
-    # staging uses environment: staging (auto when no required reviewers).
     environment: ${{ inputs.environment }}
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.url }}
+      skipped: ${{ steps.creds.outputs.skip }}
     defaults:
       run:
         working-directory: ${{ inputs.working_directory }}
@@ -76,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN}" ]; then
-            echo "VERCEL_TOKEN is not set. Deploy will be skipped (workflows remain correct offline)."
+            echo "VERCEL_TOKEN is not set. Deploy will be skipped."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -126,6 +144,7 @@ jobs:
           fi
 
       - name: Deploy prebuilt to Vercel
+        id: deploy
         if: steps.creds.outputs.skip != 'true'
         shell: bash
         env:
@@ -140,9 +159,41 @@ jobs:
             url=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
           fi
           echo "Deployed: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke check (free curl)
+        if: steps.creds.outputs.skip != 'true' && inputs.run_smoke
+        shell: bash
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          SMOKE_URL: ${{ inputs.smoke_url }}
+          SMOKE_PATH: ${{ inputs.smoke_path }}
+        run: |
+          set -euo pipefail
+          target="${SMOKE_URL}"
+          if [ -z "$target" ]; then
+            base="${DEPLOY_URL%/}"
+            path="${SMOKE_PATH}"
+            case "$path" in
+              /*) target="${base}${path}" ;;
+              *) target="${base}/${path}" ;;
+            esac
+          fi
+          echo "Smoke GET $target"
+          # retry a few times for cold starts
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/smoke.out -w "%{http_code}" --max-time 30 "$target" || echo "000")
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+              echo "Smoke OK"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Smoke failed for $target"
+          exit 1
 
       - name: Skip notice
         if: steps.creds.outputs.skip == 'true'
         run: |
           echo "::warning::Vercel credentials missing — deploy skipped for environment '${{ inputs.environment }}'."
-          echo "Environment target was: ${{ inputs.environment }} (production path uses GitHub Environment production for required reviewers)."

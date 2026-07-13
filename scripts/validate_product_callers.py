@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 USES_RE = re.compile(
-    r"uses:\s*The-Team-CG/\.github/\.github/workflows/(ci-node|sonar|deploy-vercel|ci-python)\.yml@main"
+    r"uses:\s*The-Team-CG/\.github/\.github/workflows/"
+    r"(ci-node|sonar|deploy-vercel|ci-python|security-gitleaks|security-codeql|notify|release-tag)\.yml@(main|v1)"
 )
 BRANCHES_RE = re.compile(r"branches:\s*\[staging,\s*main\]")
 ENV_STAGING = re.compile(r"environment:\s*staging")
