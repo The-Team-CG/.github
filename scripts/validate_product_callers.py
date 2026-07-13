@@ -42,7 +42,7 @@ def validate_repo(root: Path) -> list[str]:
         errors.append(f"{name}: missing .github/workflows/deploy.yml")
     else:
         text = deploy.read_text(encoding="utf-8")
-        if "deploy-vercel.yml@main" not in text:
+        if "deploy-vercel.yml@main" not in text and "deploy-vercel.yml@v1" not in text:
             errors.append(f"{name}: deploy.yml must call deploy-vercel reusable workflow")
         if not ENV_STAGING.search(text):
             errors.append(f"{name}: deploy.yml must set environment: staging")
