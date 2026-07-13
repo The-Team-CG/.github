@@ -1,0 +1,75 @@
+# Reusable SonarCloud scan + quality gate for The-Team-CG.
+# Requires org/repo secret: SONAR_TOKEN
+# Call from product repos:
+#   uses: The-Team-CG/.github/.github/workflows/sonar.yml@main
+name: Reusable SonarCloud
+
+on:
+  workflow_call:
+    inputs:
+      project_key:
+        description: SonarCloud project key (e.g. The-Team-CG_PAULUS)
+        type: string
+        required: true
+      project_name:
+        description: Display name in SonarCloud
+        type: string
+        required: false
+        default: ""
+      organization:
+        description: SonarCloud organization key
+        type: string
+        required: false
+        default: "the-team-cg"
+      args:
+        description: Extra sonar-scanner args
+        type: string
+        required: false
+        default: ""
+      working_directory:
+        description: Directory containing sources / sonar-project.properties
+        type: string
+        required: false
+        default: "."
+
+jobs:
+  sonar:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve Sonar token
+        id: token
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN is not set. Sonar scan will be skipped (workflows remain correct offline)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SonarCloud Scan
+        if: steps.token.outputs.skip != 'true'
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: ${{ inputs.working_directory }}
+          args: >-
+            -Dsonar.projectKey=${{ inputs.project_key }}
+            -Dsonar.organization=${{ inputs.organization }}
+            -Dsonar.qualitygate.wait=true
+            ${{ inputs.project_name != '' && format('-Dsonar.projectName={0}', inputs.project_name) || '' }}
+            ${{ inputs.args }}
+
+      - name: Skip notice
+        if: steps.token.outputs.skip == 'true'
+        run: |
+          echo "::warning::SONAR_TOKEN missing — SonarCloud step skipped. Add org secret SONAR_TOKEN to enable quality gates."

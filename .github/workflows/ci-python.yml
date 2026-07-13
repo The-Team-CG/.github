@@ -1,0 +1,50 @@
+# Reusable Python CI (e.g. PAULUS analytics).
+name: Reusable Python CI
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        type: string
+        required: false
+        default: "."
+      python_version:
+        type: string
+        required: false
+        default: "3.12"
+      install_command:
+        type: string
+        required: false
+        default: "pip install -r requirements.txt"
+      test_command:
+        type: string
+        required: false
+        default: ""
+
+jobs:
+  python-ci:
+    name: Python CI (${{ inputs.working_directory }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install
+        if: inputs.install_command != ''
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          eval "${{ inputs.install_command }}"
+
+      - name: Test
+        if: inputs.test_command != ''
+        shell: bash
+        run: eval "${{ inputs.test_command }}"

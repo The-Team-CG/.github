@@ -1,0 +1,152 @@
+# Reusable Node.js CI for The-Team-CG product repos.
+# Call from product repos:
+#   uses: The-Team-CG/.github/.github/workflows/ci-node.yml@main
+name: Reusable Node CI
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        description: App root relative to repo root
+        type: string
+        required: false
+        default: "."
+      node_version:
+        description: Node.js version
+        type: string
+        required: false
+        default: "22"
+      package_manager:
+        description: npm | pnpm | yarn
+        type: string
+        required: false
+        default: "npm"
+      install_command:
+        description: Override install command (empty = auto from package_manager)
+        type: string
+        required: false
+        default: ""
+      lint_command:
+        description: Lint command; empty skips
+        type: string
+        required: false
+        default: ""
+      typecheck_command:
+        description: Typecheck command; empty skips
+        type: string
+        required: false
+        default: ""
+      test_command:
+        description: Test command; empty skips
+        type: string
+        required: false
+        default: ""
+      build_command:
+        description: Build command; empty skips
+        type: string
+        required: false
+        default: "npm run build"
+      run_install:
+        description: Whether to install dependencies
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  node-ci:
+    name: Node CI (${{ inputs.working_directory }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Enable corepack (pnpm/yarn)
+        if: inputs.package_manager == 'pnpm' || inputs.package_manager == 'yarn'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: inputs.run_install
+        env:
+          # Safe placeholders so Next/Supabase clients can construct without real secrets
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.install_command }}" ]; then
+            eval "${{ inputs.install_command }}"
+            exit 0
+          fi
+          case "${{ inputs.package_manager }}" in
+            npm)
+              if [ -f package-lock.json ]; then npm ci; else npm install; fi
+              ;;
+            pnpm)
+              if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
+              ;;
+            yarn)
+              if [ -f yarn.lock ]; then yarn install --frozen-lockfile; else yarn install; fi
+              ;;
+            *)
+              echo "Unsupported package_manager: ${{ inputs.package_manager }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Lint
+        if: inputs.lint_command != ''
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+        shell: bash
+        run: eval "${{ inputs.lint_command }}"
+
+      - name: Typecheck
+        if: inputs.typecheck_command != ''
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+        shell: bash
+        run: eval "${{ inputs.typecheck_command }}"
+
+      - name: Test
+        if: inputs.test_command != ''
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          CI: "true"
+        shell: bash
+        run: eval "${{ inputs.test_command }}"
+
+      - name: Build
+        if: inputs.build_command != ''
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_URL: https://placeholder.supabase.co
+          SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          # Common Next.js build placeholders
+          NEXT_TELEMETRY_DISABLED: "1"
+        shell: bash
+        run: eval "${{ inputs.build_command }}"

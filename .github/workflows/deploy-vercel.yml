@@ -1,0 +1,148 @@
+# Reusable Vercel deploy for The-Team-CG.
+# Targets GitHub Environments: staging (auto) | production (manual required reviewers).
+# Requires secrets (org or repo): VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Call from product repos:
+#   uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+name: Reusable Vercel Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment name — must be staging or production
+        type: string
+        required: true
+      working_directory:
+        description: Vercel project root relative to repo
+        type: string
+        required: false
+        default: "."
+      vercel_org_id:
+        description: Optional override; else secret VERCEL_ORG_ID
+        type: string
+        required: false
+        default: ""
+      vercel_project_id:
+        description: Optional override; else secret VERCEL_PROJECT_ID
+        type: string
+        required: false
+        default: ""
+      node_version:
+        type: string
+        required: false
+        default: "22"
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    # Critical: production uses environment: production so Required reviewers can gate the job.
+    # staging uses environment: staging (auto when no required reviewers).
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - name: Validate environment name
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            staging|production) ;;
+            *)
+              echo "environment must be staging or production, got: ${{ inputs.environment }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Resolve credentials
+        id: creds
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SECRET_ORG: ${{ secrets.VERCEL_ORG_ID }}
+          SECRET_PROJECT: ${{ secrets.VERCEL_PROJECT_ID }}
+          INPUT_ORG: ${{ inputs.vercel_org_id }}
+          INPUT_PROJECT: ${{ inputs.vercel_project_id }}
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN}" ]; then
+            echo "VERCEL_TOKEN is not set. Deploy will be skipped (workflows remain correct offline)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ORG_ID="${INPUT_ORG:-$SECRET_ORG}"
+          PROJECT_ID="${INPUT_PROJECT:-$SECRET_PROJECT}"
+          if [ -z "${ORG_ID}" ] || [ -z "${PROJECT_ID}" ]; then
+            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing — skip deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "org_id=$ORG_ID" >> "$GITHUB_OUTPUT"
+          echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+          if [ "$TARGET_ENV" = "production" ]; then
+            echo "prod=true" >> "$GITHUB_OUTPUT"
+            echo "scope=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "prod=false" >> "$GITHUB_OUTPUT"
+            echo "scope=preview" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Vercel CLI
+        if: steps.creds.outputs.skip != 'true'
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        if: steps.creds.outputs.skip != 'true'
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ steps.creds.outputs.org_id }}
+          VERCEL_PROJECT_ID: ${{ steps.creds.outputs.project_id }}
+        run: vercel pull --yes --environment="${{ steps.creds.outputs.scope }}" --token="$VERCEL_TOKEN"
+
+      - name: Build project artifacts
+        if: steps.creds.outputs.skip != 'true'
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ steps.creds.outputs.org_id }}
+          VERCEL_PROJECT_ID: ${{ steps.creds.outputs.project_id }}
+        run: |
+          if [ "${{ steps.creds.outputs.prod }}" = "true" ]; then
+            vercel build --prod --token="$VERCEL_TOKEN"
+          else
+            vercel build --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Deploy prebuilt to Vercel
+        if: steps.creds.outputs.skip != 'true'
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ steps.creds.outputs.org_id }}
+          VERCEL_PROJECT_ID: ${{ steps.creds.outputs.project_id }}
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.creds.outputs.prod }}" = "true" ]; then
+            url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          else
+            url=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          fi
+          echo "Deployed: $url"
+
+      - name: Skip notice
+        if: steps.creds.outputs.skip == 'true'
+        run: |
+          echo "::warning::Vercel credentials missing — deploy skipped for environment '${{ inputs.environment }}'."
+          echo "Environment target was: ${{ inputs.environment }} (production path uses GitHub Environment production for required reviewers)."
