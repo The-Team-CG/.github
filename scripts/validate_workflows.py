@@ -35,6 +35,9 @@ REQUIRED_FILES = {
     "release-tag.yml": [r"on:\s*\n\s*workflow_call:", r"version"],
     "security-gitleaks.yml": [r"on:\s*\n\s*workflow_call:", r"gitleaks"],
     "security-codeql.yml": [r"on:\s*\n\s*workflow_call:", r"codeql"],
+    "security-gitleaks-history.yml": [r"schedule:", r"gitleaks git", r"redact"],
+    "security-trivy.yml": [r"on:\s*\n\s*workflow_call:", r"trivy-action", r"HIGH,CRITICAL"],
+    "deploy-render.yml": [r"on:\s*\n\s*workflow_call:", r"environment:\s*\$\{\{\s*inputs\.environment\s*\}\}", r"Render deploy hook", r"trivy-action"],
 }
 
 

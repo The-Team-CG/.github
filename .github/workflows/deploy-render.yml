@@ -1,0 +1,159 @@
+name: Reusable Render Container Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging | production
+        type: string
+        required: true
+      image_name:
+        description: Lowercase GHCR image name without tag
+        type: string
+        required: true
+      dockerfile:
+        description: Dockerfile path relative to repository root
+        type: string
+        required: false
+        default: Dockerfile
+      docker_target:
+        description: Optional Docker target
+        type: string
+        required: false
+        default: ""
+      ref:
+        description: Exact commit SHA or ref to deploy
+        type: string
+        required: true
+      health_url:
+        description: Public backend health URL
+        type: string
+        required: true
+      docker_context:
+        description: Docker build context relative to repository root
+        type: string
+        required: false
+        default: "."
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-scan-publish-deploy:
+    name: Render ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Validate environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            staging|production) ;;
+            *) echo "environment must be staging or production"; exit 1 ;;
+          esac
+
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image reference
+        id: image
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          COMMIT_SHA: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${IMAGE_NAME,,}:${COMMIT_SHA}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push targeted image
+        if: inputs.docker_target != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.dockerfile }}
+          target: ${{ inputs.docker_target }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+          labels: |
+      - name: Build and push default image
+        if: inputs.docker_target == ''
+        uses: docker/build-push-action@v6
+        with:
+          context: \${{ inputs.docker_context }}
+          file: \${{ inputs.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: \${{ steps.image.outputs.image }}
+          labels: |
+            org.opencontainers.image.revision=\${{ inputs.ref }}
+            org.opencontainers.image.source=\${{ github.server_url }}/\${{ github.repository }}
+
+            org.opencontainers.image.revision=${{ inputs.ref }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Scan published image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image.outputs.image }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      - name: Resolve immutable image digest
+        id: digest
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          set -euo pipefail
+          digest=$(docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          test -n "$digest"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RENDER_DEPLOY_HOOK_URL"
+          image_url="ghcr.io/${IMAGE#ghcr.io/}@${DIGEST}"
+          export IMAGE_URL="$image_url"
+          encoded_image=$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["IMAGE_URL"], safe=""))')
+          curl --fail-with-body --silent --show-error --request POST "${RENDER_DEPLOY_HOOK_URL}&imgURL=${encoded_image}" >/tmp/render-deploy.json
+          echo "Render deploy triggered for the built image digest"
+
+      - name: Poll backend health
+        env:
+          HEALTH_URL: ${{ inputs.health_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            code=$(curl --silent --output /tmp/backend-health.out --write-out '%{http_code}' --max-time 15 "$HEALTH_URL" || true)
+            echo "health attempt ${attempt}: HTTP ${code}"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "Backend health check failed"
+          exit 1

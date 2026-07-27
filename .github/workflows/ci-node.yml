@@ -118,10 +118,9 @@ jobs:
           eval "${{ inputs.audit_command }}"
           code=$?
           if [ "$code" -ne 0 ]; then
-            echo "::warning::Dependency audit reported issues (exit $code). Fix high/critical CVEs ASAP."
+            echo "::error::Dependency audit failed (exit $code). Resolve high/critical vulnerabilities or update the explicit audit command with a reviewed, time-bounded exception."
           fi
-          # Audit stays advisory so known transitive CVEs do not block the pipeline.
-          exit 0
+          exit "$code"
 
       - name: Lint
         if: inputs.lint_command != ''

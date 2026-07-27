@@ -14,6 +14,11 @@ on:
         type: string
         required: false
         default: "."
+      ref:
+        description: Exact commit SHA or ref to deploy
+        type: string
+        required: false
+        default: ""
       vercel_org_id:
         type: string
         required: false
@@ -72,6 +77,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Resolve app directory
         id: dir

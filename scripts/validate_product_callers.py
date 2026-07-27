@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Validate product-repo thin callers against locked CI/CD conventions.
-
-Reads real workflow and sonar files under product repo roots (passed as args
-or discovered next to this monorepo-style workspace).
-"""
+"""Validate product-repo thin callers against CI/CD conventions."""
 
 from __future__ import annotations
 
@@ -16,6 +12,7 @@ USES_RE = re.compile(
     r"(ci-node|sonar|deploy-vercel|ci-python|security-gitleaks|security-codeql|notify|release-tag)\.yml@(main|v1)"
 )
 BRANCHES_RE = re.compile(r"branches:\s*\[staging,\s*main\]")
+WORKFLOW_RUN_BRANCHES_RE = re.compile(r"workflow_run[\s\S]*head_branch == ['\"](staging|main)['\"]")
 ENV_STAGING = re.compile(r"environment:\s*staging")
 ENV_PROD = re.compile(r"environment:\s*production")
 OLD_SONAR = re.compile(r"caisteven17-code_PAULUS")
@@ -34,7 +31,7 @@ def validate_repo(root: Path) -> list[str]:
     else:
         text = ci.read_text(encoding="utf-8")
         if not USES_RE.search(text):
-            errors.append(f"{name}: ci.yml must uses: The-Team-CG/.github/... workflows")
+            errors.append(f"{name}: ci.yml must use The-Team-CG reusable workflows")
         if not BRANCHES_RE.search(text):
             errors.append(f"{name}: ci.yml must trigger on branches [staging, main]")
 
@@ -48,8 +45,10 @@ def validate_repo(root: Path) -> list[str]:
             errors.append(f"{name}: deploy.yml must set environment: staging")
         if not ENV_PROD.search(text):
             errors.append(f"{name}: deploy.yml must set environment: production")
-        if not BRANCHES_RE.search(text):
-            errors.append(f"{name}: deploy.yml must trigger on branches [staging, main]")
+        if not BRANCHES_RE.search(text) and not WORKFLOW_RUN_BRANCHES_RE.search(text):
+            errors.append(
+                f"{name}: deploy.yml must gate staging and main through push branches or workflow_run head_branch"
+            )
 
     if not sonar.is_file():
         errors.append(f"{name}: missing sonar-project.properties")
@@ -67,7 +66,6 @@ def main(argv: list[str]) -> int:
     if len(argv) > 1:
         roots = [Path(p).resolve() for p in argv[1:]]
     else:
-        # Default: sibling product repos next to workspace containing .github-org
         workspace = Path(__file__).resolve().parents[2]
         names = ["capstone-system", "Front-and-back", "PAULUS", "prism", "WOOF_V1"]
         roots = [workspace / n for n in names]
@@ -81,8 +79,8 @@ def main(argv: list[str]) -> int:
 
     if all_errors:
         print("FAIL")
-        for e in all_errors:
-            print(f"  - {e}")
+        for error in all_errors:
+            print(f"  - {error}")
         return 1
 
     print("PASS: product thin callers valid")
