@@ -21,9 +21,13 @@ The central workflow repository remains on main.
 
 Create staging and production Environments in every product repository. Configure:
 
-- VERCEL_TOKEN and VERCEL_ORG_ID as organization or Environment secrets.
+- VERCEL_TOKEN as an organization, repository, or Environment secret and VERCEL_ORG_ID as a repository variable.
 - Product Vercel project IDs as variables.
+- ENV_SYNC_MANIFEST_JSON as a repository variable copied exactly from `.github/env-sync-manifest.json`.
+- ENV_SYNC_STAGING and ENV_SYNC_PRODUCTION as repository secrets containing only that environment's managed values.
+- RENDER_API_KEY as a repository or Environment secret when the manifest has Render targets.
 - Environment-specific Render deploy hooks as secrets.
+- Environment-specific Render service IDs as repository variables.
 - Product backend health URLs as variables.
 - Optional NOTIFY_WEBHOOK_URL as an organization secret.
 - Separate staging and production runtime credentials in the provider.
@@ -48,6 +52,8 @@ For Prism, configure Render's pre-deploy command as npm --workspace prism-api ru
 
 After setup, push a controlled change to staging and verify:
 
-CI -> staging deploy -> backend health -> frontend smoke -> one staging-to-prod PR -> promotion PR CI -> manual prod merge -> prod CI -> production deploy -> production smoke.
+manual staging dry run -> CI -> staging sync -> staging deploy -> backend health -> frontend smoke -> one staging-to-prod PR -> promotion PR CI -> manual prod merge -> prod CI -> production sync -> production deploy -> production smoke.
+
+Do not copy the production bundle until the staging dry run, provider update, backend health check, and frontend smoke checks have been verified. A dry run may display target names, provider names, provider environments, and managed key names only. It must never print values, tokens, authorization headers, request bodies, provider response bodies, deploy hooks, or secret-bearing URLs.
 
 SonarCloud setup is not required.

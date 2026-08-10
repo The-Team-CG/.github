@@ -37,6 +37,14 @@ REQUIRED_FILES = {
         r"trivy-action",
         r"validate-prod-promotion@v2\.1",
     ],
+    "sync-environment.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"ENV_SYNC_BUNDLE:",
+        r"repository_variables_json:",
+        r"github\.workflow_sha",
+        r"validate-prod-promotion@v2\.1",
+        r"scripts/env_sync\.py",
+    ],
     "notify.yml": [r"on:\s*\n\s*workflow_call:", r"NOTIFY_WEBHOOK_URL"],
     "release-tag.yml": [r"on:\s*\n\s*workflow_call:", r"version"],
     "security-gitleaks.yml": [r"on:\s*\n\s*workflow_call:", r"gitleaks"],
@@ -97,6 +105,7 @@ def main() -> int:
 
     deploy = (WORKFLOWS / "deploy-vercel.yml").read_text(encoding="utf-8")
     render = (WORKFLOWS / "deploy-render.yml").read_text(encoding="utf-8")
+    sync = (WORKFLOWS / "sync-environment.yml").read_text(encoding="utf-8")
     if "environment: ${{ inputs.environment }}" not in deploy:
         errors.append("deploy-vercel.yml must set job environment from inputs.environment")
     if "staging" not in deploy or "production" not in deploy:
@@ -107,6 +116,17 @@ def main() -> int:
         errors.append("deploy-render.yml must use the dockerfile input without escaping")
     if "tags: ${{ steps.image.outputs.image }}" not in render:
         errors.append("deploy-render.yml must use the resolved image tag without escaping")
+    for forbidden in (
+        "toJSON(secrets)",
+        "upload-artifact",
+        "GITHUB_STEP_SUMMARY",
+        "GITHUB_OUTPUT",
+        "set -x",
+    ):
+        if forbidden in sync:
+            errors.append(f"sync-environment.yml contains forbidden secret-handling pattern: {forbidden}")
+    if "contents: read" not in sync or "pull-requests: read" not in sync:
+        errors.append("sync-environment.yml must use read-only contents and pull-request permissions")
 
     if errors:
         print("FAIL")
