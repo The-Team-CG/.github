@@ -451,6 +451,13 @@ class WorkflowSecurityTests(unittest.TestCase):
         )
         self.assertNotIn("ref: ${{ github.workflow_sha }}", workflow)
 
+    def test_render_deploy_declares_its_hook_secret_contract(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "deploy-render.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("    secrets:\n      RENDER_DEPLOY_HOOK_URL:", workflow)
+        self.assertIn("        required: true", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,6 +34,10 @@ on:
         type: string
         required: false
         default: "."
+    secrets:
+      RENDER_DEPLOY_HOOK_URL:
+        description: Environment-specific Render deploy hook
+        required: true
 
 permissions:
   contents: read

@@ -32,6 +32,7 @@ REQUIRED_FILES = {
     ],
     "deploy-render.yml": [
         r"on:\s*\n\s*workflow_call:",
+        r"secrets:\s*\n\s*RENDER_DEPLOY_HOOK_URL:\s*\n\s*description:.*\n\s*required:\s*true",
         r"environment:\s*\$\{\{\s*inputs\.environment\s*\}\}",
         r"Render deploy hook",
         r"trivy-action",
