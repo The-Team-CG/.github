@@ -428,7 +428,6 @@ class WorkflowSecurityTests(unittest.TestCase):
             "repository_variables_json:",
             "dry_run:",
             "validate-prod-promotion@v2.1",
-            "github.workflow_sha",
             "contents: read",
             "pull-requests: read",
         ):
@@ -441,6 +440,16 @@ class WorkflowSecurityTests(unittest.TestCase):
             "set -x",
         ):
             self.assertNotIn(forbidden, workflow)
+
+    def test_reusable_workflow_checks_out_pinned_central_implementation(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "sync-environment.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "ref: 508c9e39b9fe822cef4bdca588a9ff7ac7133cea",
+            workflow,
+        )
+        self.assertNotIn("ref: ${{ github.workflow_sha }}", workflow)
 
 
 if __name__ == "__main__":

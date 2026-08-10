@@ -41,7 +41,7 @@ REQUIRED_FILES = {
         r"on:\s*\n\s*workflow_call:",
         r"ENV_SYNC_BUNDLE:",
         r"repository_variables_json:",
-        r"github\.workflow_sha",
+        r"ref:\s*508c9e39b9fe822cef4bdca588a9ff7ac7133cea",
         r"validate-prod-promotion@v2\.1",
         r"scripts/env_sync\.py",
     ],
@@ -127,6 +127,8 @@ def main() -> int:
             errors.append(f"sync-environment.yml contains forbidden secret-handling pattern: {forbidden}")
     if "contents: read" not in sync or "pull-requests: read" not in sync:
         errors.append("sync-environment.yml must use read-only contents and pull-request permissions")
+    if "ref: ${{ github.workflow_sha }}" in sync:
+        errors.append("sync-environment.yml must not use caller-scoped github.workflow_sha for central checkout")
 
     if errors:
         print("FAIL")
