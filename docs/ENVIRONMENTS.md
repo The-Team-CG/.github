@@ -5,7 +5,7 @@
 | Branch | Purpose | Deployment |
 |---|---|---|
 | staging | Integration and pre-production | Automatic after successful CI, backend health, and frontend smoke checks |
-| prod | Protected production | Automatic after manual promotion merge and successful prod CI |
+| prod | Production promotion target | Automatic after manual promotion merge and successful prod CI |
 
 The central reusable-workflow repository keeps main as its workflow-library branch.
 
@@ -28,9 +28,15 @@ Create staging and production Environments in each product repository. Keep bran
 - staging allows automatic deployment after green staging CI.
 - production is used by the prod deployment and may require an Environment reviewer when available.
 - manual promotion merge is the required production approval; a second deployment approval is not required by this design.
-- both staging and prod reject direct pushes and force pushes.
+- when branch protection is available, both staging and prod reject direct pushes and force pushes; the current Free-plan fallback blocks unapproved production deployment.
 
 Required product branch protection includes pull requests, required CI checks, Code Owner review on prod, and disabled branch deletion.
+
+## Current GitHub plan limitation
+
+The product repositories are private and the organization is on GitHub Free. GitHub rejects branch protection, repository rulesets, and required environment reviewers for private repositories on this plan. The desired branch policy remains the target configuration after a plan upgrade.
+
+Until then, the central `v2.1` deployment workflows enforce the production invariant at the deployment boundary: a production deploy must use a full commit SHA that is the merge commit of a closed `staging -> prod` or approved `hotfix/* -> prod` pull request. A direct push may still change the ref because GitHub cannot lock it on this plan, but it cannot deploy through the production workflow.
 
 ## Configuration
 

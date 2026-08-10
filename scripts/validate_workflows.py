@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
+PROD_GUARD_ACTION = ROOT / ".github" / "actions" / "validate-prod-promotion" / "action.yml"
 
 REQUIRED_FILES = {
     "ci-node.yml": [
@@ -27,12 +28,14 @@ REQUIRED_FILES = {
         r"environment:\s*\$\{\{\s*inputs\.environment\s*\}\}",
         r"staging\|production",
         r"VERCEL_TOKEN is required for deployment",
+        r"validate-prod-promotion@v2\.1",
     ],
     "deploy-render.yml": [
         r"on:\s*\n\s*workflow_call:",
         r"environment:\s*\$\{\{\s*inputs\.environment\s*\}\}",
         r"Render deploy hook",
         r"trivy-action",
+        r"validate-prod-promotion@v2\.1",
     ],
     "notify.yml": [r"on:\s*\n\s*workflow_call:", r"NOTIFY_WEBHOOK_URL"],
     "release-tag.yml": [r"on:\s*\n\s*workflow_call:", r"version"],
@@ -64,6 +67,20 @@ def main() -> int:
     if not WORKFLOWS.is_dir():
         print(f"FAIL: missing {WORKFLOWS}", file=sys.stderr)
         return 1
+
+    if not PROD_GUARD_ACTION.is_file():
+        errors.append("missing production promotion guard action")
+    else:
+        guard_text = PROD_GUARD_ACTION.read_text(encoding="utf-8")
+        for pattern in (
+            r"listPullRequestsAssociatedWithCommit",
+            r"base\.ref === 'prod'",
+            r"merge_commit_sha === headSha",
+            r"staging",
+            r"hotfix/",
+        ):
+            if not re.search(pattern, guard_text):
+                errors.append(f"validate-prod-promotion/action.yml: pattern not found: {pattern}")
 
     for filename, patterns in REQUIRED_FILES.items():
         path = WORKFLOWS / filename

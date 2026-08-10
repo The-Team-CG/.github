@@ -45,7 +45,9 @@ The central `.github` repository remains on its own `main` branch. Its branch is
 | `staging` | Integration and pre-production | Feature PRs, approved by repository policy | Automatic staging deployment after CI and smoke checks |
 | `prod` | Production | Promotion PR from `staging` or approved `hotfix/*` PR | Automatic production deployment after merged-commit CI |
 
-Both branches are protected. Direct pushes are disabled. Pull requests require the configured approvals and required checks. `staging` remains the default branch for normal development; `prod` is the production branch.
+Both branches are intended to be protected. On GitHub plans that support private-repository branch protection, direct pushes are disabled and pull requests require the configured approvals and required checks. The current organization is on GitHub Free, which rejects branch protection, rulesets, and required environment reviewers for these private repositories. Until that plan limitation is removed, the reusable production deployment workflows enforce the deployment invariant by accepting only an exact SHA that is the merge commit of a `staging` or approved `hotfix/*` pull request into `prod`. `staging` remains the default branch for normal development; `prod` is the production branch.
+
+The deployment guard is implemented once as `.github/actions/validate-prod-promotion` and used by both central Render and Vercel deploy workflows. It applies only to `production`, so staging remains automatic. Manual rollback to a previously merged production SHA remains valid because that SHA is associated with its original merged promotion PR.
 
 ### Central workflow repository
 
@@ -226,6 +228,7 @@ Implementation must update product callers and central reusable workflows togeth
 The design is implemented successfully when:
 
 - All product repositories have `staging` and `prod` branches with the approved protection rules.
+- On plans that support private-repository protection, all product repositories have `staging` and `prod` branches with the approved protection rules; on the current Free plan, the exact-SHA production deployment guard is the enforced fallback and the plan limitation is documented.
 - Feature PRs run the complete required CI against `staging`.
 - A successful staging push deploys staging, checks backend health, checks frontends, and creates or updates exactly one `staging` to `prod` PR.
 - The promotion PR reruns CI and requires the configured review before merge.

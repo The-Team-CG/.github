@@ -3,6 +3,10 @@
 # Required credentials and project identifiers fail deployment when absent.
 name: Reusable Vercel Deploy
 
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   workflow_call:
     inputs:
@@ -70,6 +74,12 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Validate production promotion
+        if: inputs.environment == 'production'
+        uses: The-Team-CG/.github/.github/actions/validate-prod-promotion@v2.1
+        with:
+          head_sha: ${{ inputs.ref }}
 
       - name: Checkout
         uses: actions/checkout@v7

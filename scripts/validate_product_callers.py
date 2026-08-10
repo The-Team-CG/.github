@@ -11,7 +11,7 @@ USES_RE = re.compile(
     r"uses:\s*The-Team-CG/\.github/\.github/workflows/"
     r"(ci-node|ci-python|deploy-vercel|deploy-render|security-gitleaks|"
     r"security-gitleaks-history|security-codeql|notify|release-tag|"
-    r"promote-to-prod|rollback-vercel|rollback-render)\.yml@v2"
+    r"promote-to-prod|rollback-vercel|rollback-render)\.yml@v2(?:\.1)?\b"
 )
 BRANCHES_RE = re.compile(r"branches:\s*\[staging,\s*prod\]")
 WORKFLOW_RUN_BRANCHES_RE = re.compile(
@@ -46,8 +46,10 @@ def validate_repo(root: Path) -> list[str]:
         errors.append(f"{name}: missing .github/workflows/deploy.yml")
     else:
         text = deploy.read_text(encoding="utf-8")
-        if "deploy-vercel.yml@v2" not in text:
-            errors.append(f"{name}: deploy.yml must call deploy-vercel@v2")
+        if not re.search(r"deploy-(?:vercel|render)\.yml@v2\.1\b", text):
+            errors.append(f"{name}: deploy.yml must call guarded deploy workflow@v2.1")
+        if "pull-requests: read" not in text:
+            errors.append(f"{name}: deploy.yml must grant pull-requests: read for the production guard")
         if "environment: staging" not in text or "environment: production" not in text:
             errors.append(f"{name}: deploy.yml must set staging and production environments")
         if not WORKFLOW_RUN_BRANCHES_RE.search(text):
@@ -84,8 +86,10 @@ def validate_repo(root: Path) -> list[str]:
         errors.append(f"{name}: missing .github/workflows/rollback.yml")
     else:
         text = rollback.read_text(encoding="utf-8")
-        if "rollback-" not in text or "@v2" not in text:
-            errors.append(f"{name}: rollback.yml must call a central rollback workflow@v2")
+        if not re.search(r"rollback-(?:vercel|render)\.yml@v2\.1\b", text):
+            errors.append(f"{name}: rollback.yml must call guarded rollback workflow@v2.1")
+        if "pull-requests: read" not in text:
+            errors.append(f"{name}: rollback.yml must grant pull-requests: read for the production guard")
 
     for active_file in workflow_dir.glob("*.yml"):
         if active_file.name in {"security-gitleaks-history.yml"}:

@@ -1,0 +1,41 @@
+name: Validate production promotion
+description: Allow production deployment only for an exact merged staging or hotfix promotion commit.
+inputs:
+  head_sha:
+    description: Exact commit SHA requested for production deployment
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify merged production PR
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const headSha = core.getInput('head_sha', { required: true });
+          if (!/^[0-9a-f]{40}$/i.test(headSha)) {
+            core.setFailed('Production deployment requires a full 40-character commit SHA.');
+            return;
+          }
+
+          const { owner, repo } = context.repo;
+          const associatedPullRequests = await github.paginate(
+            github.rest.repos.listPullRequestsAssociatedWithCommit,
+            { owner, repo, commit_sha: headSha, per_page: 100 },
+          );
+          const promotion = associatedPullRequests.find((pullRequest) =>
+            pullRequest.state === 'closed' &&
+            Boolean(pullRequest.merged_at) &&
+            pullRequest.base.ref === 'prod' &&
+            (pullRequest.head.ref === 'staging' || pullRequest.head.ref.startsWith('hotfix/')) &&
+            pullRequest.merge_commit_sha === headSha
+          );
+
+          if (!promotion) {
+            core.setFailed(
+              `Production deployment blocked: ${headSha} is not the merge commit of a staging or hotfix PR into prod.`,
+            );
+            return;
+          }
+
+          core.info(`Production promotion verified through PR #${promotion.number}: ${headSha}`);
