@@ -1,5 +1,7 @@
 # Render backend setup
 
+Render receives immutable images from the successful staging or prod CI commit. Render must not deploy directly from a branch.
+
 Create separate Render services for staging and production. Use the Docker image deploy flow from the central reusable workflow; do not connect Render directly to a branch.
 
 | Product | Service(s) per environment | Health path |

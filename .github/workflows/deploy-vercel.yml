@@ -1,6 +1,6 @@
 # Reusable Vercel deploy for The-Team-CG.
 # Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
-# Without secrets, deploy is skipped with a warning (job succeeds).
+# Required credentials and project identifiers fail deployment when absent.
 name: Reusable Vercel Deploy
 
 on:
@@ -50,9 +50,6 @@ on:
       deployment_url:
         description: Deployed URL when deploy ran
         value: ${{ jobs.deploy.outputs.deployment_url }}
-      skipped:
-        description: true if credentials missing
-        value: ${{ jobs.deploy.outputs.skipped }}
 
 jobs:
   deploy:
@@ -61,7 +58,6 @@ jobs:
     environment: ${{ inputs.environment }}
     outputs:
       deployment_url: ${{ steps.deploy.outputs.url }}
-      skipped: ${{ steps.creds.outputs.skip }}
     steps:
       - name: Validate environment name
         shell: bash
@@ -116,16 +112,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${VERCEL_TOKEN}" ]; then
-            echo "VERCEL_TOKEN is not set. Deploy will be skipped."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::VERCEL_TOKEN is required for deployment"
+            exit 1
           fi
           ORG_ID="${INPUT_ORG:-$SECRET_ORG}"
           PROJECT_ID="${INPUT_PROJECT:-$SECRET_PROJECT}"
           if [ -z "${ORG_ID}" ] || [ -z "${PROJECT_ID}" ]; then
-            echo "VERCEL_ORG_ID/VERCEL_PROJECT_ID missing — skip deploy."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::VERCEL_ORG_ID and VERCEL_PROJECT_ID are required for deployment"
+            exit 1
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "org_id=$ORG_ID" >> "$GITHUB_OUTPUT"
@@ -217,8 +211,3 @@ jobs:
           done
           echo "Smoke failed for $target"
           exit 1
-
-      - name: Skip notice
-        if: steps.creds.outputs.skip == 'true'
-        run: |
-          echo "::warning::Vercel credentials missing — deploy skipped for environment '${{ inputs.environment }}'. Job succeeds; add secrets later."

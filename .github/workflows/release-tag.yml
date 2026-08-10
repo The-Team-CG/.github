@@ -10,10 +10,10 @@ on:
         type: string
         required: true
       target_ref:
-        description: Git ref to tag (default main)
+        description: Git ref to tag (default prod)
         type: string
         required: false
-        default: "main"
+        default: "prod"
       changelog_entry:
         description: Optional one-line release note
         type: string

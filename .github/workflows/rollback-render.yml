@@ -1,0 +1,51 @@
+name: Reusable Render Rollback
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      image_name:
+        type: string
+        required: true
+      dockerfile:
+        type: string
+        required: false
+        default: Dockerfile
+      docker_target:
+        type: string
+        required: false
+        default: ""
+      ref:
+        description: Exact known-good commit to rebuild and deploy
+        type: string
+        required: true
+      health_url:
+        type: string
+        required: true
+      docker_context:
+        type: string
+        required: false
+        default: "."
+    secrets:
+      RENDER_DEPLOY_HOOK_URL:
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  rollback:
+    uses: ./.github/workflows/deploy-render.yml
+    with:
+      environment: ${{ inputs.environment }}
+      image_name: ${{ inputs.image_name }}
+      dockerfile: ${{ inputs.dockerfile }}
+      docker_target: ${{ inputs.docker_target }}
+      ref: ${{ inputs.ref }}
+      health_url: ${{ inputs.health_url }}
+      docker_context: ${{ inputs.docker_context }}
+    secrets:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

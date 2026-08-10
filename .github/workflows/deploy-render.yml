@@ -95,15 +95,12 @@ jobs:
         if: inputs.docker_target == ''
         uses: docker/build-push-action@v6
         with:
-          context: \${{ inputs.docker_context }}
-          file: \${{ inputs.dockerfile }}
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.dockerfile }}
           platforms: linux/amd64
           push: true
-          tags: \${{ steps.image.outputs.image }}
+          tags: ${{ steps.image.outputs.image }}
           labels: |
-            org.opencontainers.image.revision=\${{ inputs.ref }}
-            org.opencontainers.image.source=\${{ github.server_url }}/\${{ github.repository }}
-
             org.opencontainers.image.revision=${{ inputs.ref }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
