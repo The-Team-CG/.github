@@ -192,8 +192,14 @@ def validate_env_sync(root: Path, ci_text: str, deploy_text: str) -> list[str]:
             errors.append(f"{name}: Render targets require RENDER_API_KEY mapping")
     if "toJSON(secrets)" in combined_sync_text:
         errors.append(f"{name}: environment-sync callers must not serialize all secrets")
-    if "default: true" not in manual_text or "refs/heads/prod" not in manual_text:
-        errors.append(f"{name}: manual sync must default dry-run and guard prod dispatches")
+    if (
+        "default: true" not in manual_text
+        or 'expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"' not in manual_text
+        or "options: [staging, production]" not in manual_text
+    ):
+        errors.append(
+            f"{name}: manual sync must default dry-run and guard staging/prod dispatches"
+        )
     if "dry_run: false" not in deploy_text:
         errors.append(f"{name}: trusted deployment sync must apply changes before deploy")
     for dependency in ("sync-staging", "sync-production"):
