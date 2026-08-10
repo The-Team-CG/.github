@@ -1,7 +1,7 @@
 # notifications via Discord/Slack incoming webhook.
 # Org/repo secret: NOTIFY_WEBHOOK_URL
 # Call:
-#   uses: The-Team-CG/.github/.github/workflows/notify.yml@main
+#   uses: The-Team-CG/.github/.github/workflows/notify.yml@v2
 name: Reusable Notify
 
 on:
@@ -51,10 +51,10 @@ jobs:
           fi
           # Slack-compatible payload also works for many Discord slack-compatible webhooks
           text="*${TITLE}*
-status=\`${STATUS}\` env=\`${ENVIRONMENT}\`
-repo=\`${REPO}\` ref=\`${REF}\` sha=\`${SHA:0:7}\`
-${MESSAGE}
-${RUN_URL}"
+          status=\`${STATUS}\` env=\`${ENVIRONMENT}\`
+          repo=\`${REPO}\` ref=\`${REF}\` sha=\`${SHA:0:7}\`
+          ${MESSAGE}
+          ${RUN_URL}"
           payload=$(printf '%s' "$text" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')
           curl -sS -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null
           echo "Notification sent."

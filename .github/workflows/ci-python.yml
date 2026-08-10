@@ -16,6 +16,11 @@ on:
         type: string
         required: false
         default: "pip install -r requirements.txt"
+      audit_command:
+        description: Python dependency audit command; empty skips
+        type: string
+        required: false
+        default: "python -m pip_audit"
       test_command:
         type: string
         required: false
@@ -43,6 +48,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           eval "${{ inputs.install_command }}"
+
+      - name: Install dependency audit tool
+        if: inputs.audit_command != ''
+        shell: bash
+        run: python -m pip install pip-audit
+
+      - name: Dependency audit
+        if: inputs.audit_command != ''
+        shell: bash
+        run: eval "${{ inputs.audit_command }}"
 
       - name: Test
         if: inputs.test_command != ''

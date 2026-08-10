@@ -1,30 +1,22 @@
-# Coverage policy (practice bar)
+# Coverage policy
 
-Thresholds are **looser than industry 80%** so teams can practice shipping tests.
+The practice floor remains intentionally below an industry 80% target while the products expand their real test suites.
 
-## Practice thresholds
+| Metric | Required practice floor |
+|---|---:|
+| Lines | 50% |
+| Statements | 50% |
+| Functions | 50% |
+| Branches | 40% |
 
-| Metric | Practice (CI now) | Industry later |
-|--------|-------------------|----------------|
-| Lines | **50%** | 80% |
-| Statements | **50%** | 80% |
-| Functions | **50%** | 80% |
-| Branches | **40%** | 75% |
-| Sonar new code (UI) | **≥ 60%** | ≥ 80% |
+## Product enforcement
 
-## Where CI enforces it
+| Product | Required coverage command |
+|---|---|
+| capstone-system | capstone-system/unified npm run test:coverage |
+| Front-and-back | Front-End-Dashboard and Back-End npm run test:coverage |
+| PAULUS | frontend and backend workspace coverage commands |
+| prism | API coverage plus client, event, guest, and supplier coverage |
+| WOOF_V1 | frontend practice coverage and backend Jest coverage |
 
-| Product | Package | How |
-|---------|---------|-----|
-| capstone-system | `capstone-system/unified` | Node built-in test + `practice/` + `test:coverage` |
-| Front-and-back | `Front-End-Dashboard`, `Back-End` | same |
-| PAULUS | `src/frontend`, `src/backend` | same (workspaces) |
-| prism | API (vitest full suite) + `apps/client` practice | `test:api:coverage` + client `test:coverage` |
-| WOOF_V1 | `frontend` practice + `backend` jest | `test:coverage` / `test:cov` |
-
-Each app that did not already have a suite gets a small `practice/` folder (`sum.mjs` + tests).  
-**Replace/expand `practice/` with real app tests over time** — keep the same thresholds.
-
-## SonarCloud UI
-
-Set quality gate on **new code** coverage to **≥ 60%** while practicing (raise to 80% later).
+Each coverage command must fail when its configured threshold fails. Coverage artifacts may be uploaded for review, but must not include environment files or secrets. SonarCloud is not used.

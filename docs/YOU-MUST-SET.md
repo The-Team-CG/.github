@@ -1,119 +1,59 @@
-# What you must set
+# Operator setup
 
-Workflows and repo wiring are already in place. These steps need your accounts, tokens, and project settings.
+The reusable workflows and product callers are repository configuration. Operators still need to configure GitHub, Vercel, Render, and provider runtime values.
 
-## Where workflows live (Actions tab)
+## GitHub branch policy
 
-| What you see | Path on default branch `staging` |
-|--------------|-----------------------------------|
-| Product CI / Deploy / Release | Each product repo: **`.github/workflows/`** (`ci.yml`, `deploy.yml`, `release.yml`) |
-| Shared pipeline logic | Org repo **https://github.com/The-Team-CG/.github** → `.github/workflows/` (`ci-node.yml`, `sonar.yml`, `deploy-vercel.yml`, …) |
+For each product repository:
 
-Product workflows **call** the org reusable ones (`uses: The-Team-CG/.github/.github/workflows/...@main`).  
-If Actions said the workflow file was invalid / jobs never started, that was fixed: org workflows repo is public + reusable access on, YAML is UTF-8 without BOM, ASCII-only.
+1. Keep staging as the default integration branch.
+2. Create prod from the current production main commit during the migration.
+3. Protect staging and prod.
+4. Require pull requests and required CI checks.
+5. Require Code Owner review on prod.
+6. Disable force pushes and branch deletion.
+7. Allow merge commits for the staging-to-prod promotion PR.
+8. After verification, remove the old product main branch using the exact repository and branch name.
 
----
+The central workflow repository remains on main.
 
-## 1. GitHub org secrets
+## GitHub Environments and values
 
-Org **The-Team-CG** → Settings → Secrets and variables → Actions → New organization secret
+Create staging and production Environments in every product repository. Configure:
 
-| Secret | Where to get it | Used for |
-|--------|-----------------|----------|
-| `SONAR_TOKEN` | [SonarCloud](https://sonarcloud.io) → My Account → Security → Generate token | Quality gate |
-| `VERCEL_TOKEN` | [Vercel](https://vercel.com/account/tokens) → Create token | Deploy |
-| `VERCEL_ORG_ID` | Vercel → Team Settings → General → Team ID | Deploy |
-| `NOTIFY_WEBHOOK_URL` | Discord channel webhook or Slack incoming webhook | CI / deploy notifications |
+- VERCEL_TOKEN as an organization, repository, or Environment secret and VERCEL_ORG_ID as a repository variable.
+- Product Vercel project IDs as variables.
+- ENV_SYNC_MANIFEST_JSON as a repository variable copied exactly from `.github/env-sync-manifest.json`.
+- ENV_SYNC_STAGING and ENV_SYNC_PRODUCTION as repository secrets containing only that environment's managed values.
+- RENDER_API_KEY as a repository or Environment secret when the manifest has Render targets.
+- Environment-specific Render deploy hooks as secrets.
+- Environment-specific Render service IDs as repository variables.
+- Product backend health URLs as variables.
+- Optional NOTIFY_WEBHOOK_URL as an organization secret.
+- Separate staging and production runtime credentials in the provider.
 
-Optional per-repo: `VERCEL_PROJECT_ID` when projects differ.
+Required Render hook names and health variables are listed in RENDER-SETUP.md. Never paste secret values into this repository, workflow inputs, issues, logs, screenshots, or chat.
 
----
+## Product setup
 
-## 2. Vercel projects
+| Product | Frontend | Backend |
+|---|---|---|
+| capstone-system | capstone-system/unified on Vercel | None |
+| Front-and-back | Front-End-Dashboard on Vercel | Back-End on Render |
+| PAULUS | src/frontend on Vercel | API and analytics on Render |
+| prism | apps/client, apps/event, apps/guest, apps/supplier on Vercel | shared API on Render |
+| WOOF_V1 | frontend on Vercel | backend on Render |
 
-1. Create a Vercel team (or personal account) and connect GitHub **The-Team-CG**.  
-2. Create one project per frontend (root directories below).  
-3. Set repo secret `VERCEL_PROJECT_ID` (or a shared org default).  
-4. Configure **Preview/staging** vs **Production** environment variables separately.
+Use Node.js 24 for Vercel builds. Configure Render registry access inside Render, not in repository files.
 
-| Repo | Root directory | Suggested project name |
-|------|----------------|------------------------|
-| capstone-system | `capstone-system/unified` | `capstone-system-web` |
-| Front-and-back | `Front-End-Dashboard` | `front-and-back-dashboard` |
-| PAULUS | `src/frontend` | `paulus-web` |
-| prism | `apps/client` | `prism-client` |
-| WOOF_V1 | `frontend` | `woof-web` |
+## Migration and verification
 
-Runtime for builds: **Node.js 24** (match Vercel project Node version to 24).
+For Prism, configure Render's pre-deploy command as npm --workspace prism-api run db:migrate:deploy. This runs prisma migrate deploy and never resets or seeds production.
 
----
+After setup, push a controlled change to staging and verify:
 
-## 3. SonarCloud
+manual staging dry run -> CI -> staging sync -> staging deploy -> backend health -> frontend smoke -> one staging-to-prod PR -> promotion PR CI -> manual prod merge -> prod CI -> production sync -> production deploy -> production smoke.
 
-1. Sign in at https://sonarcloud.io with GitHub.  
-2. Create/import organization (workflow default key: `the-team-cg` — change if yours differs).  
-3. Install the **SonarCloud GitHub App** on **The-Team-CG**.  
-4. Projects (keys already in repos):
+Do not copy the production bundle until the staging dry run, provider update, backend health check, and frontend smoke checks have been verified. A dry run may display target names, provider names, provider environments, and managed key names only. It must never print values, tokens, authorization headers, request bodies, provider response bodies, deploy hooks, or secret-bearing URLs.
 
-| Project key |
-|-------------|
-| `The-Team-CG_capstone-system` |
-| `The-Team-CG_Front-and-back` |
-| `The-Team-CG_PAULUS` |
-| `The-Team-CG_prism` |
-| `The-Team-CG_WOOF_V1` |
-
-5. Enable **Clean as You Code**. For practice, set coverage on **new code ≥ 60%** (industry later: 80%).  
-6. Put the token in org secret `SONAR_TOKEN`.  
-
-CI unit thresholds (where tests exist): **50%** lines/statements/functions, **40%** branches — see `docs/COVERAGE.md`.
-
----
-
-## 4. Branch protection
-
-If your GitHub plan supports branch protection on these repos, enable on **`staging`** and **`main`**:
-
-| Setting | Value |
-|---------|--------|
-| Require a pull request before merging | On |
-| Required approving reviews | 1 |
-| Require review from Code Owners | On |
-| Require status checks to pass | On (after CI has run once) |
-| Block force pushes / deletions | On |
-
-If branch protection is unavailable on private repos, use team process: PR-only into `staging`/`main`, respect `CODEOWNERS`, no direct pushes to protected lines.
-
----
-
-## 5. Staging vs production data
-
-For Supabase / Mongo / APIs: separate projects and keys for staging and production. Never point staging at production service-role credentials.
-
----
-
-## 6. Notifications (optional)
-
-1. Create Discord or Slack incoming webhook.  
-2. Set org secret `NOTIFY_WEBHOOK_URL`.  
-3. CI failure and deploy result jobs already call the notify workflow.
-
----
-
-## 7. Releases (optional)
-
-Actions → **Release** → Run workflow → version e.g. `1.0.0` (creates `v1.0.0` on `main`). Update `CHANGELOG.md` when cutting a release.
-
----
-
-## Quick checklist
-
-- [ ] Org secrets: `SONAR_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`  
-- [ ] Optional: `NOTIFY_WEBHOOK_URL`  
-- [ ] Vercel projects + `VERCEL_PROJECT_ID` (Node **24**)  
-- [ ] Vercel env vars (staging ≠ prod)  
-- [ ] SonarCloud app + projects + quality gate  
-- [ ] Branch protection on `staging` + `main` (if available)  
-- [ ] Separate staging/prod backends  
-
-After secrets exist, push to `staging` and confirm Actions: CI → security → Sonar → deploy → smoke → notify.
+SonarCloud setup is not required.

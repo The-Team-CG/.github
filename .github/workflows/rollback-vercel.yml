@@ -1,0 +1,46 @@
+name: Reusable Vercel Rollback
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      working_directory:
+        type: string
+        required: false
+        default: "."
+      ref:
+        description: Exact known-good commit to redeploy
+        type: string
+        required: true
+      vercel_org_id:
+        type: string
+        required: false
+        default: ""
+      vercel_project_id:
+        type: string
+        required: false
+        default: ""
+      smoke_url:
+        type: string
+        required: false
+        default: ""
+      smoke_path:
+        type: string
+        required: false
+        default: "/"
+
+jobs:
+  rollback:
+    uses: ./.github/workflows/deploy-vercel.yml
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: ${{ inputs.working_directory }}
+      ref: ${{ inputs.ref }}
+      vercel_org_id: ${{ inputs.vercel_org_id }}
+      vercel_project_id: ${{ inputs.vercel_project_id }}
+      smoke_url: ${{ inputs.smoke_url }}
+      smoke_path: ${{ inputs.smoke_path }}
+      run_smoke: true
+    secrets: inherit

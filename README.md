@@ -1,97 +1,68 @@
-﻿# The-Team-CG org `.github`
+# The-Team-CG central GitHub workflows
 
-Reusable GitHub Actions workflows and org defaults for **The-Team-CG**.
+This repository owns the reusable GitHub Actions used by the five CICG product repositories:
 
-**Runtime:** Node.js **24** (latest patch via `check-latest`), Python **3.13**, current stable Actions majors.
+- capstone-system
+- Front-and-back
+- PAULUS
+- prism
+- WOOF_V1
 
-## Branch model (product repos)
+Product repositories keep thin caller workflows. Shared CI, security, deployment, promotion, rollback, release, and notification behavior is changed here and published as an immutable workflow release such as v2.
 
-| Branch | Role |
-|--------|------|
-| `staging` | Trunk / default / pre-prod |
-| `main` | Production |
+The central workflow repository remains on main. Product repositories use staging for integration and prod for production.
+
+## Product delivery flow
+
+1. A feature pull request targets staging.
+2. Pull request CI runs dependency audit, configured lint, typecheck, tests, coverage, build, Gitleaks, and advisory CodeQL.
+3. A successful merge to staging runs push CI.
+4. Staging deploys the backend first, checks health, deploys frontends, and runs smoke checks.
+5. The successful staging SHA creates or updates one staging-to-prod pull request.
+6. The promotion pull request reruns CI and requires manual review.
+7. A manual merge to prod runs prod CI.
+8. A successful prod CI run deploys the exact merged SHA to production.
+
+SonarCloud is not part of the active workflow model.
 
 ## Reusable workflows
 
-Call from product repos (path includes the double `.github`):
+| Workflow | Purpose |
+|---|---|
+| ci-node.yml | Node install, npm audit, lint, typecheck, tests, coverage artifact, and build |
+| ci-python.yml | Python install, pip-audit, and tests |
+| security-gitleaks.yml | Redacted current-tree secret scan |
+| security-gitleaks-history.yml | Manual/weekly redacted full-history scan |
+| security-codeql.yml | Advisory CodeQL analysis |
+| security-trivy.yml | HIGH/CRITICAL container scan |
+| deploy-render.yml | Exact-SHA image build, GHCR push, Trivy scan, Render hook, and health polling |
+| deploy-vercel.yml | Exact-SHA Vercel build, deployment, and smoke check |
+| sync-environment.yml | Validate and synchronize managed Render/Vercel environment values before deployment |
+| promote-to-prod.yml | Idempotent staging-to-prod PR and staging-promotion check |
+| rollback-render.yml | Exact-target backend rollback |
+| rollback-vercel.yml | Exact-target frontend rollback |
+| release-tag.yml | Manual semantic release tag from prod |
+| notify.yml | Optional webhook notification |
 
-```yaml
-jobs:
-  validate:
-    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v1
-    with:
-      working_directory: .
-      node_version: "24"
-      build_command: npm run build
-    secrets: inherit
+Callers should use a tagged central release:
 
-  sonar:
-    needs: validate
-    uses: The-Team-CG/.github/.github/workflows/sonar.yml@v1
-    with:
-      project_key: The-Team-CG_MyApp
-    secrets: inherit
+~~~yaml
+uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v2
+~~~
 
-  deploy-staging:
-    if: github.ref == 'refs/heads/staging'
-    needs: [validate, sonar]
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
-    with:
-      environment: staging
-      working_directory: .
-      node_version: "24"
-    secrets: inherit
+## Required configuration
 
-  deploy-production:
-    if: github.ref == 'refs/heads/main'
-    needs: [validate, sonar]
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
-    with:
-      environment: production
-      working_directory: .
-      node_version: "24"
-    secrets: inherit
-```
+Deployment uses GitHub Environments named staging and production. Required Vercel and Render credentials must be present; missing deployment configuration fails the deployment job rather than producing a successful skip.
 
-| Workflow | File | Purpose |
-|----------|------|---------|
-| Node CI | `.github/workflows/ci-node.yml` | install / npm audit / lint / typecheck / test (+ coverage) / build |
-| Python CI | `.github/workflows/ci-python.yml` | optional Python packages |
-| SonarCloud | `.github/workflows/sonar.yml` | scan + quality gate wait |
-| Vercel deploy | `.github/workflows/deploy-vercel.yml` | deploy + smoke (`staging` / `production`) |
-| Gitleaks | `.github/workflows/security-gitleaks.yml` | secret-leak scan |
-| CodeQL | `.github/workflows/security-codeql.yml` | static analysis |
-| Notify | `.github/workflows/notify.yml` | Discord/Slack webhook (`NOTIFY_WEBHOOK_URL`) |
-| Release tag | `.github/workflows/release-tag.yml` | semver tags `vX.Y.Z` |
+Expected secret classes include VERCEL_TOKEN, VERCEL_ORG_ID, environment-specific Render deploy hooks, and optional NOTIFY_WEBHOOK_URL. Project IDs and public health URLs are variables. Runtime database and service credentials remain in the provider runtime environment.
 
-See **`docs/WHAT-WE-NEED.md`** and **`docs/YOU-MUST-SET.md`**.
+Environment synchronization uses two fixed repository secrets per product, `ENV_SYNC_STAGING` and `ENV_SYNC_PRODUCTION`. Product repositories keep a value-free `.github/env-sync-manifest.json` template; operators copy that JSON into the `ENV_SYNC_MANIFEST_JSON` repository variable. Product callers pin `sync-environment.yml` to a full central commit SHA, validate with `dry_run: true` first, and run the same synchronization before trusted staging and production deployment jobs.
 
-## GitHub Environments (prod gate)
+See docs/ENVIRONMENTS.md, docs/RENDER-SETUP.md, and docs/CICD-SECRET-MODEL.md.
 
-| Environment | Behavior | Used by |
-|-------------|----------|---------|
-| `staging` | Auto deploy after green CI | `deploy-vercel` `environment: staging` |
-| `production` | Job uses `environment: production` (required reviewers when enabled on plan) | `deploy-vercel` `environment: production` |
+## Validation
 
-When Environment required reviewers are not available, use **CODEOWNERS + required PR reviews** on `main` as the human gate. See `docs/ENVIRONMENTS.md`.
-
-## Org secrets
-
-| Secret | Purpose |
-|--------|---------|
-| `SONAR_TOKEN` | SonarCloud |
-| `VERCEL_TOKEN` | Vercel CLI deploy |
-| `VERCEL_ORG_ID` | Vercel team/org id |
-| `VERCEL_PROJECT_ID` | Default project (or per-repo) |
-| `NOTIFY_WEBHOOK_URL` | Discord/Slack webhook (optional) |
-
-If secrets are missing, Sonar / deploy / notify **skip with a warning** so pipelines stay valid offline.
-
-Coverage practice bar: **50%** lines/functions/statements, **40%** branches (see `docs/COVERAGE.md`).
-
-## Docs
-
-- `docs/YOU-MUST-SET.md` â€” what humans must configure  
-- `docs/WHAT-WE-NEED.md` â€” backlog (coverage, security, versioning, notifications)  
-- `docs/ENVIRONMENTS.md` â€” staging/prod gates  
-- `templates/` â€” Dependabot, CODEOWNERS, release dispatch  
+~~~powershell
+python scripts/validate_workflows.py
+python scripts/validate_product_callers.py
+~~~

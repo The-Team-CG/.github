@@ -1,0 +1,96 @@
+name: Reusable environment secret sync
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: CICG environment (staging or production)
+        type: string
+        required: true
+      ref:
+        description: Exact 40-character product commit SHA being deployed
+        type: string
+        required: true
+      manifest_json:
+        description: Value-free environment sync manifest JSON
+        type: string
+        required: true
+      repository_variables_json:
+        description: Caller repository variables used to resolve destination IDs
+        type: string
+        required: true
+      dry_run:
+        description: Validate and report names without provider requests
+        type: boolean
+        required: false
+        default: true
+      target:
+        description: Optional logical target name; empty selects all environment targets
+        type: string
+        required: false
+        default: ""
+    secrets:
+      ENV_SYNC_BUNDLE:
+        description: Selected ENV_SYNC_STAGING or ENV_SYNC_PRODUCTION JSON bundle
+        required: true
+      RENDER_API_KEY:
+        description: Render API credential, required only for non-dry-run Render targets
+        required: false
+      VERCEL_TOKEN:
+        description: Vercel API credential, required only for non-dry-run Vercel targets
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sync:
+    name: Sync ${{ inputs.environment }} environment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Validate trusted environment and exact revision
+        shell: bash
+        env:
+          CICG_ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYMENT_SHA: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          case "$CICG_ENVIRONMENT" in
+            staging|production) ;;
+            *) echo "environment must be staging or production"; exit 1 ;;
+          esac
+          if [[ ! "$DEPLOYMENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "ref must be a full 40-character commit SHA"
+            exit 1
+          fi
+
+      - name: Validate production promotion
+        if: inputs.environment == 'production'
+        uses: The-Team-CG/.github/.github/actions/validate-prod-promotion@v2.1
+        with:
+          head_sha: ${{ inputs.ref }}
+
+      - name: Check out immutable central synchronization implementation
+        uses: actions/checkout@v7
+        with:
+          repository: The-Team-CG/.github
+          ref: ${{ github.workflow_sha }}
+          path: central-environment-sync
+          sparse-checkout: scripts/env_sync.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Validate and synchronize managed environment variables
+        shell: bash
+        env:
+          ENV_SYNC_MANIFEST_JSON: ${{ inputs.manifest_json }}
+          ENV_SYNC_BUNDLE_JSON: ${{ secrets.ENV_SYNC_BUNDLE }}
+          ENV_SYNC_REPOSITORY_VARIABLES_JSON: ${{ inputs.repository_variables_json }}
+          ENV_SYNC_ENVIRONMENT: ${{ inputs.environment }}
+          ENV_SYNC_DRY_RUN: ${{ inputs.dry_run }}
+          ENV_SYNC_TARGET: ${{ inputs.target }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: python central-environment-sync/scripts/env_sync.py
