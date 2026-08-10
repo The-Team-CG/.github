@@ -76,7 +76,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: The-Team-CG/.github
-          ref: ${{ github.workflow_sha }}
+          # The workflow SHA context refers to the caller's commit when this
+          # file is invoked as a reusable workflow. Keep the implementation
+          # checkout explicitly pinned to the central commit that introduced
+          # scripts/env_sync.py so a product SHA is never fetched from .github.
+          ref: 508c9e39b9fe822cef4bdca588a9ff7ac7133cea
           path: central-environment-sync
           sparse-checkout: scripts/env_sync.py
           sparse-checkout-cone-mode: false
