@@ -67,6 +67,51 @@ The approved design spec is C:\Codes\cicg\.github-org\docs\superpowers\specs\202
 
 ---
 
+### Task 0: Verify latest remote baselines before any implementation
+
+**Files:** no source-file changes; all six repositories are inspected before branching or editing.
+
+**Interfaces:** Product repositories use the latest origin/staging as their implementation baseline. The central workflow repository uses the latest origin/main. Existing dirty work is preserved and never overwritten.
+
+- [ ] Fetch each repository's remotes without changing the checked-out branch.
+
+~~~powershell
+$repos = @(
+  'C:\Codes\cicg\.github-org',
+  'C:\Codes\cicg\capstone-system',
+  'C:\Codes\cicg\Front-and-back',
+  'C:\Codes\cicg\PAULUS',
+  'C:\Codes\cicg\prism',
+  'C:\Codes\cicg\WOOF_V1'
+)
+foreach ($repo in $repos) {
+  git -C $repo fetch origin --prune
+}
+~~~
+
+- [ ] Verify the central baseline is origin/main and every product baseline is origin/staging.
+
+~~~powershell
+git -C C:\Codes\cicg\.github-org rev-parse origin/main
+git -C C:\Codes\cicg\capstone-system rev-parse origin/staging
+git -C C:\Codes\cicg\Front-and-back rev-parse origin/staging
+git -C C:\Codes\cicg\PAULUS rev-parse origin/staging
+git -C C:\Codes\cicg\prism rev-parse origin/staging
+git -C C:\Codes\cicg\WOOF_V1 rev-parse origin/staging
+~~~
+
+- [ ] Check every product worktree for uncommitted changes before creating an implementation branch. If a product worktree is dirty, preserve it and stop that repository's branch operation until the user decides how to proceed.
+
+~~~powershell
+foreach ($repo in @('capstone-system','Front-and-back','PAULUS','prism','WOOF_V1')) {
+  git -C (Join-Path 'C:\Codes\cicg' $repo) status --short --branch
+}
+~~~
+
+- [ ] Create each product implementation branch from origin/staging, never from a stale local staging branch. Create the central implementation branch from origin/main.
+- [ ] Record the verified baseline SHA, remote URL, and checked-out implementation branch in the task handoff before editing files.
+- [ ] Re-run this fetch and baseline verification immediately before branch rename/push operations in Task 7.
+
 ### Task 1: Harden central CI and security contracts
 
 **Files:** central ci-python.yml, security-gitleaks-history.yml, security-codeql.yml, sonar.yml, and validate_workflows.py.
