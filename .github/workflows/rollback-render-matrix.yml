@@ -1,0 +1,76 @@
+name: Reusable Render Matrix Rollback
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Render environment to roll back
+        required: true
+        type: string
+      ref:
+        description: Exact known-good commit to rebuild and deploy
+        required: true
+        type: string
+      service_manifest_path:
+        description: Repository-relative Render service contract
+        required: false
+        default: .github/render-services.json
+        type: string
+      backend_image_name:
+        description: GHCR image name for the Node microservice image
+        required: true
+        type: string
+      analytics_image_name:
+        description: GHCR image name for the Python analytics image
+        required: true
+        type: string
+      backend_dockerfile:
+        description: Dockerfile for the Node microservice image
+        required: false
+        default: Dockerfile.backend
+        type: string
+      analytics_dockerfile:
+        description: Dockerfile for the Python analytics image
+        required: false
+        default: Dockerfile.analytics
+        type: string
+      docker_context:
+        description: Docker build context
+        required: false
+        default: .
+        type: string
+      repository_variables_json:
+        description: JSON object produced from the caller repository variables
+        required: true
+        type: string
+      health_attempts:
+        description: Number of readiness checks for each public service
+        required: false
+        default: 30
+        type: number
+    secrets:
+      RENDER_DEPLOY_HOOKS_JSON:
+        description: JSON object mapping service keys to Render deploy hook URLs
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+
+jobs:
+  rollback:
+    uses: ./.github/workflows/deploy-render-matrix.yml
+    with:
+      environment: ${{ inputs.environment }}
+      ref: ${{ inputs.ref }}
+      service_manifest_path: ${{ inputs.service_manifest_path }}
+      backend_image_name: ${{ inputs.backend_image_name }}
+      analytics_image_name: ${{ inputs.analytics_image_name }}
+      backend_dockerfile: ${{ inputs.backend_dockerfile }}
+      analytics_dockerfile: ${{ inputs.analytics_dockerfile }}
+      docker_context: ${{ inputs.docker_context }}
+      repository_variables_json: ${{ inputs.repository_variables_json }}
+      health_attempts: ${{ inputs.health_attempts }}
+    secrets:
+      RENDER_DEPLOY_HOOKS_JSON: ${{ secrets.RENDER_DEPLOY_HOOKS_JSON }}

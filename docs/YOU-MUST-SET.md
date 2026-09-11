@@ -26,7 +26,7 @@ Create staging and production Environments in every product repository. Configur
 - ENV_SYNC_MANIFEST_JSON as a repository variable copied exactly from `.github/env-sync-manifest.json`.
 - ENV_SYNC_STAGING and ENV_SYNC_PRODUCTION as repository secrets containing only that environment's managed values.
 - RENDER_API_KEY as a repository or Environment secret when the manifest has Render targets.
-- Environment-specific Render deploy hooks as secrets.
+- Environment-specific Render deploy hooks as secrets. PAULUS uses `RENDER_PAULUS_DEPLOY_HOOKS_STAGING` and `RENDER_PAULUS_DEPLOY_HOOKS_PRODUCTION`, each containing the nine-key JSON map described in RENDER-SETUP.md.
 - Environment-specific Render service IDs as repository variables.
 - Product backend health URLs as variables.
 - Optional NOTIFY_WEBHOOK_URL as an organization secret.
@@ -40,11 +40,11 @@ Required Render hook names and health variables are listed in RENDER-SETUP.md. N
 |---|---|---|
 | capstone-system | capstone-system/unified on Vercel | None |
 | Front-and-back | Front-End-Dashboard on Vercel | Back-End on Render |
-| PAULUS | src/frontend on Vercel | API and analytics on Render |
+| PAULUS | `src/frontend` on one Vercel project (Preview and Production environments) | Eight Node microservice services plus Python analytics on Render; one Node image is reused with a per-service `dockerCommand` |
 | prism | apps/client, apps/event, apps/guest, apps/supplier on Vercel | shared API on Render |
 | WOOF_V1 | frontend on Vercel | backend on Render |
 
-Use Node.js 24 for Vercel builds. Configure Render registry access inside Render, not in repository files.
+Use Node.js 24 for Vercel builds. Configure Render registry access inside Render, not in repository files. Sync `PAULUS/render.yaml` after creating the `paulus-ghcr` registry credential; it provisions the existing service topology without changing the application microservices.
 
 ## Migration and verification
 
