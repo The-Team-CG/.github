@@ -15,7 +15,7 @@ USES_RE = re.compile(
     r"security-gitleaks-history|security-codeql|notify|release-tag|"
     r"promote-to-prod|rollback-vercel|rollback-render|rollback-render-matrix)\.yml@v2(?:\.1)?\b"
 )
-BRANCHES_RE = re.compile(r"branches:\s*\[(?:dev,\s*)?staging,\s*prod\]")
+BRANCHES_RE = re.compile(r"branches:\s*\[staging,\s*prod\]")
 WORKFLOW_RUN_BRANCHES_RE = re.compile(
     r"workflow_run[\s\S]*head_branch == ['\"](staging|prod)['\"]"
 )
@@ -235,9 +235,7 @@ def validate_repo(root: Path) -> list[str]:
         if not USES_RE.search(ci_text):
             errors.append(f"{name}: ci.yml must use central @v2 reusable workflows")
         if not BRANCHES_RE.search(ci_text):
-            errors.append(
-                f"{name}: ci.yml must trigger on [staging, prod] or [dev, staging, prod]"
-            )
+            errors.append(f"{name}: ci.yml must trigger on branches [staging, prod]")
         if SONAR_RE.search(ci_text):
             errors.append(f"{name}: ci.yml contains an active Sonar reference")
 
