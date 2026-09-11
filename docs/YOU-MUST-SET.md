@@ -26,7 +26,7 @@ Create staging and production Environments in every product repository. Configur
 - ENV_SYNC_MANIFEST_JSON as a repository variable copied exactly from `.github/env-sync-manifest.json`.
 - ENV_SYNC_STAGING and ENV_SYNC_PRODUCTION as repository secrets containing only that environment's managed values.
 - RENDER_API_KEY as a repository or Environment secret when the manifest has Render targets.
-- Environment-specific Render deploy hooks as secrets. PAULUS uses `RENDER_PAULUS_DEPLOY_HOOKS_STAGING` and `RENDER_PAULUS_DEPLOY_HOOKS_PRODUCTION`, each containing the nine-key JSON map described in RENDER-SETUP.md.
+- Environment-specific Render deploy hooks as repository or organization secrets. PAULUS uses `RENDER_PAULUS_DEPLOY_HOOKS_STAGING` and `RENDER_PAULUS_DEPLOY_HOOKS_PRODUCTION`, each containing the nine-key JSON map described in RENDER-SETUP.md. Keep these as repository/org secrets because reusable-workflow callers cannot forward caller Environment secrets implicitly.
 - Environment-specific Render service IDs as repository variables.
 - Product backend health URLs as variables.
 - Optional NOTIFY_WEBHOOK_URL as an organization secret.
