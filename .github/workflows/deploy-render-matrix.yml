@@ -1,0 +1,314 @@
+name: Reusable Render Matrix Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Render environment to deploy
+        required: true
+        type: string
+      ref:
+        description: Exact commit SHA to build and deploy
+        required: true
+        type: string
+      service_manifest_path:
+        description: Repository-relative Render service contract
+        required: false
+        default: .github/render-services.json
+        type: string
+      backend_image_name:
+        description: GHCR image name for the Node microservice image
+        required: true
+        type: string
+      analytics_image_name:
+        description: GHCR image name for the Python analytics image
+        required: true
+        type: string
+      backend_dockerfile:
+        description: Dockerfile for the Node microservice image
+        required: false
+        default: Dockerfile.backend
+        type: string
+      analytics_dockerfile:
+        description: Dockerfile for the Python analytics image
+        required: false
+        default: Dockerfile.analytics
+        type: string
+      docker_context:
+        description: Docker build context
+        required: false
+        default: .
+        type: string
+      repository_variables_json:
+        description: JSON object produced from the caller repository variables
+        required: true
+        type: string
+      health_attempts:
+        description: Number of readiness checks for each public service
+        required: false
+        default: 30
+        type: number
+    secrets:
+      RENDER_DEPLOY_HOOKS_JSON:
+        description: JSON object mapping service keys to Render deploy hook URLs
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+
+jobs:
+  deploy:
+    name: Render matrix (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Validate deployment ref
+        env:
+          DEPLOY_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$DEPLOY_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "ref must be a full 40-character commit SHA" >&2
+            exit 1
+          fi
+
+      - name: Check out the exact deploy ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+
+      - name: Validate production promotion
+        if: inputs.environment == 'production'
+        uses: The-Team-CG/.github/.github/actions/validate-prod-promotion@v2.1
+        with:
+          head_sha: ${{ inputs.ref }}
+          token: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate Render service contract
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          MANIFEST_PATH: ${{ inputs.service_manifest_path }}
+          HOOKS_JSON: ${{ secrets.RENDER_DEPLOY_HOOKS_JSON }}
+          VARIABLES_JSON: ${{ inputs.repository_variables_json }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          environment = os.environ["ENVIRONMENT"]
+          manifest_path = Path(os.environ["MANIFEST_PATH"])
+          if not manifest_path.is_file():
+              raise SystemExit(f"Render service manifest not found: {manifest_path}")
+
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          if manifest.get("version") != 1:
+              raise SystemExit("Render service manifest version must be 1")
+
+          services = manifest.get("services")
+          if not isinstance(services, list) or not services:
+              raise SystemExit("Render service manifest must contain a non-empty services array")
+
+          hooks = json.loads(os.environ["HOOKS_JSON"])
+          if not isinstance(hooks, dict):
+              raise SystemExit("RENDER_DEPLOY_HOOKS_JSON must be a JSON object")
+
+          variables = json.loads(os.environ["VARIABLES_JSON"])
+          if not isinstance(variables, dict):
+              raise SystemExit("repository_variables_json must be a JSON object")
+
+          seen = set()
+          selected = []
+          for service in services:
+              key = service.get("key")
+              if not isinstance(key, str) or not key:
+                  raise SystemExit("Every Render service must have a non-empty key")
+              if key in seen:
+                  raise SystemExit(f"Duplicate Render service key: {key}")
+              seen.add(key)
+              if service.get("image_family") not in {"backend", "analytics"}:
+                  raise SystemExit(f"Unsupported image family for {key}")
+              if not isinstance(service.get("start_command"), str) or not service["start_command"].strip():
+                  raise SystemExit(f"Missing start_command for {key}")
+              if not isinstance(service.get("port"), int) or not 1 <= service["port"] <= 65535:
+                  raise SystemExit(f"Invalid port for {key}")
+              if environment not in service.get("render_name", {}):
+                  raise SystemExit(f"Missing Render name for {key} in {environment}")
+              if key not in hooks or not isinstance(hooks[key], str) or not hooks[key].strip():
+                  raise SystemExit(f"Missing deploy hook for {key}")
+              selected.append(service)
+
+          if not selected:
+              raise SystemExit(f"No Render services are defined for {environment}")
+
+          health_count = 0
+          for service in selected:
+              variable_name = service.get("health_url_variables", {}).get(environment)
+              if variable_name:
+                  if not variables.get(variable_name):
+                      raise SystemExit(
+                          f"Missing repository variable {variable_name} for {service['key']}"
+                      )
+                  health_count += 1
+
+          print(
+              f"Validated {len(selected)} Render services for {environment}; "
+              f"{health_count} public readiness checks configured."
+          )
+          PY
+
+      - name: Build and push the Node microservice image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.backend_dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ inputs.backend_image_name }}:${{ inputs.ref }}
+          cache-from: type=gha,scope=paulus-backend
+          cache-to: type=gha,mode=max,scope=paulus-backend
+
+      - name: Build and push the Python analytics image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.docker_context }}
+          file: ${{ inputs.analytics_dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ inputs.analytics_image_name }}:${{ inputs.ref }}
+          cache-from: type=gha,scope=paulus-analytics
+          cache-to: type=gha,mode=max,scope=paulus-analytics
+
+      - name: Scan the Node microservice image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ inputs.backend_image_name }}:${{ inputs.ref }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Scan the Python analytics image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ inputs.analytics_image_name }}:${{ inputs.ref }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Resolve immutable image digests
+        id: images
+        env:
+          BACKEND_IMAGE: ghcr.io/${{ inputs.backend_image_name }}:${{ inputs.ref }}
+          ANALYTICS_IMAGE: ghcr.io/${{ inputs.analytics_image_name }}:${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          backend_digest="$(docker buildx imagetools inspect "$BACKEND_IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          analytics_digest="$(docker buildx imagetools inspect "$ANALYTICS_IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          [[ "$backend_digest" == sha256:* ]] || { echo "Could not resolve backend digest" >&2; exit 1; }
+          [[ "$analytics_digest" == sha256:* ]] || { echo "Could not resolve analytics digest" >&2; exit 1; }
+          echo "backend_digest=$backend_digest" >> "$GITHUB_OUTPUT"
+          echo "analytics_digest=$analytics_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Render services and verify public readiness
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          MANIFEST_PATH: ${{ inputs.service_manifest_path }}
+          HOOKS_JSON: ${{ secrets.RENDER_DEPLOY_HOOKS_JSON }}
+          VARIABLES_JSON: ${{ inputs.repository_variables_json }}
+          BACKEND_IMAGE_NAME: ${{ inputs.backend_image_name }}
+          ANALYTICS_IMAGE_NAME: ${{ inputs.analytics_image_name }}
+          BACKEND_DIGEST: ${{ steps.images.outputs.backend_digest }}
+          ANALYTICS_DIGEST: ${{ steps.images.outputs.analytics_digest }}
+          HEALTH_ATTEMPTS: ${{ inputs.health_attempts }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          environment = os.environ["ENVIRONMENT"]
+          manifest = json.loads(Path(os.environ["MANIFEST_PATH"]).read_text(encoding="utf-8"))
+          hooks = json.loads(os.environ["HOOKS_JSON"])
+          variables = json.loads(os.environ["VARIABLES_JSON"])
+          backend_image = f"ghcr.io/{os.environ['BACKEND_IMAGE_NAME']}"
+          analytics_image = f"ghcr.io/{os.environ['ANALYTICS_IMAGE_NAME']}"
+          digests = {
+              "backend": os.environ["BACKEND_DIGEST"],
+              "analytics": os.environ["ANALYTICS_DIGEST"],
+          }
+          services = manifest["services"]
+
+          selected = []
+          for service in services:
+              key = service["key"]
+              hook_url = hooks.get(key)
+              if not isinstance(hook_url, str) or not hook_url.strip():
+                  raise SystemExit(f"Missing deploy hook for {key}")
+              selected.append(service)
+
+          for service in selected:
+              key = service["key"]
+              image_name = backend_image if service["image_family"] == "backend" else analytics_image
+              image_url = f"{image_name}@{digests[service['image_family']]}"
+              separator = "&" if "?" in hooks[key] else "?"
+              request_url = f"{hooks[key]}{separator}imgURL={urllib.parse.quote(image_url, safe='')}"
+              request = urllib.request.Request(request_url, data=b"", method="POST")
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      if not 200 <= response.status < 300:
+                          raise SystemExit(f"Render deploy hook failed for {key}: HTTP {response.status}")
+              except urllib.error.HTTPError as error:
+                  raise SystemExit(f"Render deploy hook failed for {key}: HTTP {error.code}") from error
+              print(f"Triggered Render deploy for {key}")
+
+          attempts = int(os.environ["HEALTH_ATTEMPTS"])
+          for service in selected:
+              variable_name = service.get("health_url_variables", {}).get(environment)
+              if not variable_name:
+                  continue
+              base_url = variables.get(variable_name)
+              if not base_url:
+                  raise SystemExit(f"Missing repository variable {variable_name}")
+              health_url = f"{str(base_url).rstrip('/')}{service.get('health_path', '/')}"
+              expected_status = int(service.get("health_expected_status", 200))
+              last_status = "unavailable"
+              for attempt in range(1, attempts + 1):
+                  try:
+                      request = urllib.request.Request(health_url, method="GET")
+                      with urllib.request.urlopen(request, timeout=10) as response:
+                          last_status = str(response.status)
+                          if response.status == expected_status:
+                              print(f"Readiness passed for {service['key']}: HTTP {response.status}")
+                              break
+                  except urllib.error.HTTPError as error:
+                      last_status = str(error.code)
+                  except (urllib.error.URLError, TimeoutError) as error:
+                      last_status = type(error).__name__
+                  if attempt == attempts:
+                      raise SystemExit(
+                          f"Readiness failed for {service['key']} after {attempts} attempts "
+                          f"(last result: {last_status})"
+                      )
+                  time.sleep(10)
+          PY

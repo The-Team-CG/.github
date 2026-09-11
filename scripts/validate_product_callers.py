@@ -11,9 +11,9 @@ from env_sync import ValidationError, parse_manifest
 
 USES_RE = re.compile(
     r"uses:\s*The-Team-CG/\.github/\.github/workflows/"
-    r"(ci-node|ci-python|deploy-vercel|deploy-render|security-gitleaks|"
+    r"(ci-node|ci-python|deploy-vercel|deploy-render|deploy-render-matrix|security-gitleaks|"
     r"security-gitleaks-history|security-codeql|notify|release-tag|"
-    r"promote-to-prod|rollback-vercel|rollback-render)\.yml@v2(?:\.1)?\b"
+    r"promote-to-prod|rollback-vercel|rollback-render|rollback-render-matrix)\.yml@v2(?:\.1)?\b"
 )
 BRANCHES_RE = re.compile(r"branches:\s*\[staging,\s*prod\]")
 WORKFLOW_RUN_BRANCHES_RE = re.compile(
@@ -55,10 +55,8 @@ EXPECTED_ENV_SYNC = {
         },
         "bundle_keys": {"render-api", "render-analytics", "vercel-frontend"},
         "render_deploy_names": {
-            "RENDER_PAULUS_API_STAGING_DEPLOY_HOOK_URL",
-            "RENDER_PAULUS_API_PRODUCTION_DEPLOY_HOOK_URL",
-            "RENDER_PAULUS_ANALYTICS_STAGING_DEPLOY_HOOK_URL",
-            "RENDER_PAULUS_ANALYTICS_PRODUCTION_DEPLOY_HOOK_URL",
+            "RENDER_PAULUS_DEPLOY_HOOKS_STAGING",
+            "RENDER_PAULUS_DEPLOY_HOOKS_PRODUCTION",
         },
     },
     "prism-cicg-workflow": {
@@ -192,9 +190,15 @@ def validate_env_sync(root: Path, ci_text: str, deploy_text: str) -> list[str]:
             errors.append(f"{name}: Render targets require RENDER_API_KEY mapping")
     if "toJSON(secrets)" in combined_sync_text:
         errors.append(f"{name}: environment-sync callers must not serialize all secrets")
+    has_legacy_dispatch_guard = 'expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"' in manual_text
+    has_branch_mapping = (
+        'case "$DISPATCH_ENVIRONMENT"' in manual_text
+        and 'refs/heads/staging' in manual_text
+        and 'refs/heads/prod' in manual_text
+    )
     if (
         "default: true" not in manual_text
-        or 'expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"' not in manual_text
+        or not (has_legacy_dispatch_guard or has_branch_mapping)
         or "options: [staging, production]" not in manual_text
     ):
         errors.append(
@@ -240,8 +244,10 @@ def validate_repo(root: Path) -> list[str]:
         deploy_text = ""
     else:
         deploy_text = deploy.read_text(encoding="utf-8")
-        if not re.search(r"deploy-(?:vercel|render)\.yml@v2\.1\b", deploy_text):
-            errors.append(f"{name}: deploy.yml must call guarded deploy workflow@v2.1")
+        if not re.search(r"deploy-vercel\.yml@v2\.1\b", deploy_text) or not re.search(
+            r"deploy-render(?:-matrix)?\.yml@(?:v2\.1|[0-9a-f]{40})\b", deploy_text
+        ):
+            errors.append(f"{name}: deploy.yml must call guarded Render and Vercel deploy workflows")
         if "pull-requests: read" not in deploy_text:
             errors.append(f"{name}: deploy.yml must grant pull-requests: read for the production guard")
         if "environment: staging" not in deploy_text or "environment: production" not in deploy_text:
@@ -283,8 +289,10 @@ def validate_repo(root: Path) -> list[str]:
         errors.append(f"{name}: missing .github/workflows/rollback.yml")
     else:
         text = rollback.read_text(encoding="utf-8")
-        if not re.search(r"rollback-(?:vercel|render)\.yml@v2\.1\b", text):
-            errors.append(f"{name}: rollback.yml must call guarded rollback workflow@v2.1")
+        if not re.search(r"rollback-vercel\.yml@v2\.1\b", text) or not re.search(
+            r"rollback-render(?:-matrix)?\.yml@(?:v2\.1|[0-9a-f]{40})\b", text
+        ):
+            errors.append(f"{name}: rollback.yml must call guarded Render and Vercel rollback workflows")
         if "pull-requests: read" not in text:
             errors.append(f"{name}: rollback.yml must grant pull-requests: read for the production guard")
 

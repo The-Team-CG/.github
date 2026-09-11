@@ -38,6 +38,28 @@ REQUIRED_FILES = {
         r"trivy-action",
         r"validate-prod-promotion@v2\.1",
     ],
+    "deploy-render-matrix.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"RENDER_DEPLOY_HOOKS_JSON:",
+        r"backend_image_name:",
+        r"analytics_image_name:",
+        r"service_manifest_path:",
+        r"repository_variables_json:",
+        r"Build and push the Node microservice image",
+        r"Build and push the Python analytics image",
+        r"Resolve immutable image digests",
+        r"imgURL",
+        r"trivy-action",
+        r"validate-prod-promotion@v2\.1",
+    ],
+    "publish-render-images.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"backend_image_name:",
+        r"analytics_image_name:",
+        r"Build and push the Node bootstrap image",
+        r"Build and push the Python bootstrap image",
+        r"trivy-action",
+    ],
     "sync-environment.yml": [
         r"on:\s*\n\s*workflow_call:",
         r"ENV_SYNC_BUNDLE:",
@@ -68,6 +90,11 @@ REQUIRED_FILES = {
     ],
     "rollback-vercel.yml": [r"on:\s*\n\s*workflow_call:", r"deploy-vercel\.yml"],
     "rollback-render.yml": [r"on:\s*\n\s*workflow_call:", r"deploy-render\.yml"],
+    "rollback-render-matrix.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"deploy-render-matrix\.yml",
+        r"RENDER_DEPLOY_HOOKS_JSON:",
+    ],
 }
 
 
