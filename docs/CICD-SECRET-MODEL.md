@@ -4,8 +4,8 @@ Secret values are never committed, echoed, uploaded as artifacts, or passed as o
 
 | Secret/value | Storage | Workflow use |
 |---|---|---|
-| VERCEL_TOKEN and VERCEL_ORG_ID | GitHub organization or Environment secrets | Vercel CLI deployment only |
-| VERCEL_PROJECT_ID per product | GitHub variable | Vercel project selection |
+| VERCEL_TOKEN | GitHub organization, repository, or Environment secret | Vercel CLI deployment only |
+| VERCEL_ORG_ID and product Vercel project IDs | GitHub repository variables (or the reusable-workflow secret fallback) | Vercel project selection |
 | RENDER_*_DEPLOY_HOOK_URL | GitHub repository or organization secret | Render trigger target only for single-service products |
 | RENDER_PAULUS_DEPLOY_HOOKS_STAGING / RENDER_PAULUS_DEPLOY_HOOKS_PRODUCTION | GitHub repository or organization secrets | JSON map of the nine PAULUS Render service keys to deploy-hook URLs |
 | *_API_*_URL health values | GitHub variable | Public health polling only |
