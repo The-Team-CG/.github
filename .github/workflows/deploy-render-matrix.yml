@@ -194,7 +194,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=paulus-analytics
 
       - name: Scan the Node microservice image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: ghcr.io/${{ inputs.backend_image_name }}:${{ inputs.ref }}
           format: table
@@ -203,7 +203,7 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Scan the Python analytics image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           image-ref: ghcr.io/${{ inputs.analytics_image_name }}:${{ inputs.ref }}
           format: table
