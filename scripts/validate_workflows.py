@@ -52,6 +52,14 @@ REQUIRED_FILES = {
         r"trivy-action",
         r"validate-prod-promotion@v2\.1",
     ],
+    "publish-render-images.yml": [
+        r"on:\s*\n\s*workflow_call:",
+        r"backend_image_name:",
+        r"analytics_image_name:",
+        r"Build and push the Node bootstrap image",
+        r"Build and push the Python bootstrap image",
+        r"trivy-action",
+    ],
     "sync-environment.yml": [
         r"on:\s*\n\s*workflow_call:",
         r"ENV_SYNC_BUNDLE:",

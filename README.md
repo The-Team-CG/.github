@@ -37,6 +37,7 @@ SonarCloud is not part of the active workflow model.
 | security-trivy.yml | HIGH/CRITICAL container scan |
 | deploy-render.yml | Exact-SHA image build, GHCR push, Trivy scan, Render hook, and health polling |
 | deploy-render-matrix.yml | Build two immutable images once, fan out Render deploy hooks per service, and check public readiness |
+| publish-render-images.yml | Manual bootstrap publication for a new image-backed Render Blueprint |
 | deploy-vercel.yml | Exact-SHA Vercel build, deployment, and smoke check |
 | sync-environment.yml | Validate and synchronize managed Render/Vercel environment values before deployment |
 | promote-to-prod.yml | Idempotent staging-to-prod PR and staging-promotion check |

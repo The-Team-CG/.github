@@ -57,8 +57,9 @@ Put runtime values such as database URLs, Supabase service-role keys, JWT signin
 Before the first Blueprint sync:
 
 1. Create a workspace registry credential named `paulus-ghcr` with read access to the two GHCR images.
-2. Create or attach staging and production Render environment groups containing the runtime secrets required by the existing services.
-3. Sync the Blueprint, then create one Render deploy hook for each service in each environment and place the URLs in the matching matrix secret.
-4. Set `PAULUS_API_*_URL` and `PAULUS_ANALYTICS_*_URL` repository variables to the public service URLs. The central workflow polls those two public services; private services stay reachable only through Render’s private network.
+2. Run PAULUS's manual `Bootstrap Render images` workflow against a full staging commit SHA. It publishes the `bootstrap` tags referenced by the Blueprint.
+3. Create or attach staging and production Render environment groups containing the runtime secrets required by the existing services.
+4. Sync the Blueprint, then create one Render deploy hook for each service in each environment and place the URLs in the matching matrix secret.
+5. Set `PAULUS_API_*_URL` and `PAULUS_ANALYTICS_*_URL` repository variables to the public service URLs. The central workflow polls those two public services; private services stay reachable only through Render’s private network.
 
 The Blueprint contains only non-secret topology and internal service URLs. It intentionally does not replace the existing runtime secret model.

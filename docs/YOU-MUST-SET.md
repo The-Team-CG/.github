@@ -44,7 +44,7 @@ Required Render hook names and health variables are listed in RENDER-SETUP.md. N
 | prism | apps/client, apps/event, apps/guest, apps/supplier on Vercel | shared API on Render |
 | WOOF_V1 | frontend on Vercel | backend on Render |
 
-Use Node.js 24 for Vercel builds. Configure Render registry access inside Render, not in repository files. Sync `PAULUS/render.yaml` after creating the `paulus-ghcr` registry credential; it provisions the existing service topology without changing the application microservices.
+Use Node.js 24 for Vercel builds. Configure Render registry access inside Render, not in repository files. Run PAULUS's manual `Bootstrap Render images` workflow once, then sync `PAULUS/render.yaml` after creating the `paulus-ghcr` registry credential; it provisions the existing service topology without changing the application microservices.
 
 ## Migration and verification
 
