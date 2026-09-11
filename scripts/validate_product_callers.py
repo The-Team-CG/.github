@@ -190,9 +190,15 @@ def validate_env_sync(root: Path, ci_text: str, deploy_text: str) -> list[str]:
             errors.append(f"{name}: Render targets require RENDER_API_KEY mapping")
     if "toJSON(secrets)" in combined_sync_text:
         errors.append(f"{name}: environment-sync callers must not serialize all secrets")
+    has_legacy_dispatch_guard = 'expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"' in manual_text
+    has_branch_mapping = (
+        'case "$DISPATCH_ENVIRONMENT"' in manual_text
+        and 'refs/heads/staging' in manual_text
+        and 'refs/heads/prod' in manual_text
+    )
     if (
         "default: true" not in manual_text
-        or 'expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"' not in manual_text
+        or not (has_legacy_dispatch_guard or has_branch_mapping)
         or "options: [staging, production]" not in manual_text
     ):
         errors.append(
